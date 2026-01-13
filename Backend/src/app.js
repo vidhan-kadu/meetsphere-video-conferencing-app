@@ -3,35 +3,43 @@ dotenv.config();
 
 import express from "express";
 import { createServer } from "node:http";
-import { Server } from "socket.io";
+
 import mongoose from "mongoose";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 
 import userRoutes from "./routes/users.routes.js";
 import { connectToSocket } from "./controllers/socketManager.js";
 
 const app = express();
 const server = createServer(app);
-connectToSocket(server);
 
-app.set("port", process.env.PORT || 8000);
 
-app.use(cors());
+
+app.use(
+  cors({
+    origin: "https://meetspherefrontend-no4f.onrender.com",
+    credentials: true,
+  })
+);
+app.use(cookieParser());
 app.use(express.json({ limit: "40kb" }));
 app.use(express.urlencoded({ limit: "40kb", extended: true }));
 
 app.use("/api/v1/users", userRoutes);
 
 app.get("/home", (req, res) => {
-  res.json({ hello: "World" });
+  res.json({ status: "MeetSphere backend running" });
 });
+connectToSocket(server);
+const PORT = process.env.PORT || 8000;
 
 const start = async () => {
   try {
-    const connectionDb = await mongoose.connect(process.env.MONGO_URL);
-   
+    await mongoose.connect(process.env.MONGO_URL);
+    console.log("MongoDB connected");
 
-    server.listen(app.get("port"), () => {
+    server.listen(PORT, () => {
       console.log("Connected to the DB");
     });
   } catch (err) {

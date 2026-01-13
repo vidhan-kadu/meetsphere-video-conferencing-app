@@ -30,7 +30,8 @@ import { io } from "socket.io-client";
 import styles from "../styles/videoComponent.module.css";
 import { useNavigate } from "react-router-dom";
 
-const server_url = "http://localhost:8000";
+const server_url = import.meta.env.VITE_BACKEND_URL;
+
 const connections = {};
 
 const perrConfigConnection = {
@@ -357,9 +358,15 @@ export default function VideoMeetComponent() {
 
   const connectToSocket = () => {
     //connection of socketIO
-    socketRef.current = io(server_url, {
-      transports: ["websocket"],
-    });
+
+    if (!server_url) {
+  console.error("VITE_BACKEND_URL not defined");
+  return;
+}
+ socketRef.current = io(server_url, {
+  transports: ["websocket"],
+  withCredentials: true,
+});
 
     socketRef.current.on("signal", gotMessageFromServer);
 
@@ -368,7 +375,8 @@ export default function VideoMeetComponent() {
 
       socketIdRef.current = socketRef.current.id;
 
-      socketRef.current.emit("join-call", window.location.href);
+     const roomId = window.location.pathname;
+socketRef.current.emit("join-call", roomId);
 
       socketRef.current.on("chat-message", addMessage);
 

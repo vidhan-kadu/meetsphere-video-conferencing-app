@@ -15,35 +15,38 @@ import { connectToSocket } from "./controllers/socketManager.js";
 const app = express();
 const server = createServer(app);
 
-// ES module fix
+// ================== __dirname FIX ==================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// middleware
+// ================== MIDDLEWARE ==================
 app.use(
   cors({
     origin: "https://meetspherefrontend-no4f.onrender.com",
     credentials: true,
   })
 );
+
 app.use(cookieParser());
 app.use(express.json({ limit: "40kb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: "40kb" }));
 
-// api routes
+// ================== API ROUTES ==================
 app.use("/api/v1/users", userRoutes);
 
-// serve frontend
+// ================== FRONTEND BUILD ==================
 app.use(express.static(path.join(__dirname, "Frontend/dist")));
 
-// ✅ React Router fallback (FIXED)
-app.get("/*", (req, res) => {
+// ✅✅✅ REACT ROUTER FALLBACK (EXPRESS 5 SAFE)
+// ❌ DO NOT USE app.get("*") OR app.get("/*")
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, "Frontend/dist", "index.html"));
 });
 
-// socket
+// ================== SOCKET ==================
 connectToSocket(server);
 
+// ================== SERVER START ==================
 const PORT = process.env.PORT || 8000;
 
 const start = async () => {
@@ -52,7 +55,7 @@ const start = async () => {
     console.log("MongoDB connected");
 
     server.listen(PORT, () => {
-      console.log("Server running on port", PORT);
+      console.log(`Server running on port ${PORT}`);
     });
   } catch (err) {
     console.error("Mongo connection failed:", err.message);

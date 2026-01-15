@@ -23,8 +23,8 @@ import MicOffIcon from "@mui/icons-material/MicOff";
 import ScreenShareIcon from "@mui/icons-material/ScreenShare";
 import StopScreenShareIcon from "@mui/icons-material/StopScreenShare";
 import ChatIcon from "@mui/icons-material/Chat";
-
-import React, { use, useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
 import styles from "../styles/videoComponent.module.css";
@@ -37,6 +37,7 @@ const perrConfigConnection = {
 };
 
 export default function VideoMeetComponent() {
+    const { roomId } = useParams();
   var socketRef = useRef();
   let socketIdRef = useRef();
   const connectionsRef = useRef({});
@@ -66,7 +67,7 @@ export default function VideoMeetComponent() {
 
   let [username, setUsername] = useState("");
 
-  const videoRef = useRef([]);
+  // const videoRef = useRef([]);
 
   let [videos, setVideos] = useState([]);
 
@@ -167,9 +168,10 @@ export default function VideoMeetComponent() {
     }
   };
 
-  useEffect(() => {
-    getPermissions();
-  }, []);
+useEffect(() => {
+  if (!roomId) return;
+  getPermissions();
+}, [roomId]);
 
   useEffect(() => {
     return () => {
@@ -354,147 +356,87 @@ export default function VideoMeetComponent() {
     }
   };
 
-  const connectToSocket = () => {
-    //connection of socketIO
+// ================= SOCKET HELPERS =================
 
-    if (!server_url) {
-      console.error("VITE_BACKEND_URL not defined");
+const handleUserLeft = (id) => {
+  if (connectionsRef.current[id]) {
+    connectionsRef.current[id].close();
+    delete connectionsRef.current[id];
+  }
+
+  setVideos((prev) => prev.filter((v) => v.socketId !== id));
+};
+
+const handleUserJoined = (id, clients) => {
+  clients.forEach((socketListId) => {
+    if (socketListId === socketIdRef.current) return;
+    if (connectionsRef.current[socketListId]) return;
+
+    const pc = new RTCPeerConnection(perrConfigConnection);
+    connectionsRef.current[socketListId] = pc;
+
+    if (window.localStream) {
+  window.localStream.getTracks().forEach((track) => {
+    pc.addTrack(track, window.localStream);
+  });
+}
+
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socketRef.current.emit(
+          "signal",
+          socketListId,
+          JSON.stringify({ ice: event.candidate })
+        );
+      }
+    };
+
+    pc.ontrack = (event) => {
+      const stream = event.streams[0];
+      setVideos((prev) => {
+  if (prev.find(v => v.socketId === socketListId)) return prev;
+  return [...prev, { socketId: socketListId, stream }];
+});
+
+    };
+  });
+};
+
+
+const connectToSocket = () => {
+  if (socketRef.current?.connected) return;
+
+  socketRef.current = io(server_url, {
+    transports: ["websocket"],
+    withCredentials: true,
+  });
+
+socketRef.current.off();
+
+  socketRef.current.on("signal", gotMessageFromServer);
+
+  socketRef.current.on("connect", () => {
+    socketIdRef.current = socketRef.current.id;
+
+    if (!roomId) {
+      console.error("Room ID missing");
       return;
     }
-    socketRef.current = io(server_url, {
-      transports: ["websocket"],
-      withCredentials: true,
-    });
 
-    socketRef.current.on("signal", gotMessageFromServer);
+   socketRef.current.emit("join-call", {
+  roomId,
+  username,
+  });
 
-    socketRef.current.on("connect", () => {
-      console.log("CONNECTED TO SOCKET SERVER", socketRef.current.id);
 
-      socketIdRef.current = socketRef.current.id;
+    socketRef.current.on("chat-message", addMessage);
+    socketRef.current.on("user-left", handleUserLeft);
+    socketRef.current.on("user-joined", handleUserJoined);
+  });
+};
 
-      const roomId = window.location.pathname.replace(/\/$/, "");
-      socketRef.current.emit("join-call", roomId);
-
-      socketRef.current.on("chat-message", addMessage);
-
-      socketRef.current.on("user-left", (id) => {
-        if (connectionsRef.current[id]) {
-          connectionsRef.current[id].close();
-          delete connectionsRef.current[id];
-        }
-
-        setVideos((prev) => prev.filter((v) => v.socketId !== id));
-      });
-
-      socketRef.current.on("user-joined", (id, clients) => {
-        clients.forEach((socketListId) => {
-          if (socketListId === socketIdRef.current) return;
-          connectionsRef.current[socketListId] = new RTCPeerConnection(
-            perrConfigConnection
-          );
-
-          const pc = connectionsRef.current[socketListId];
-
-          window.localStream.getTracks().forEach((track) => {
-            const senders = pc.getSenders();
-            const alreadyAdded = senders.some(
-              (sender) => sender.track && sender.track.id === track.id
-            );
-            if (!alreadyAdded) {
-              pc.addTrack(track, window.localStream);
-            }
-          });
-
-          pc.onicecandidate = (event) => {
-            if (event.candidate) {
-              socketRef.current.emit(
-                "signal",
-                socketListId,
-                JSON.stringify({ ice: event.candidate })
-              );
-            }
-          };
-
-          pc.ontrack = (event) => {
-            const stream = event.streams[0];
-            setVideos((prev) => {
-              const existing = prev.find((v) => v.socketId === socketListId);
-              if (existing) {
-                return prev.map((v) =>
-                  v.socketId === socketListId ? { ...v, stream } : v
-                );
-              }
-              return [...prev, { socketId: socketListId, stream }];
-            });
-          };
-          // })
-          //   (video) => video.socketId === socketListId
-          // );
-          // if (videoExists) return;
-          //   setVideos((videos) => {
-          //     const updatedVideos = videos.map((video) =>
-          //       video.socketId === socketListId
-          //         ? { ...video, stream: event.stream }
-          //         : video
-          //     );
-          //     videoRef.current = updatedVideos;
-          //     return updatedVideos;
-          //   });
-          // } else {
-          // const newVideo = {
-          //   socketId: socketListId,
-          //   stream,                                              //temporary for black screen error
-          //   autoplay: true,
-          //   playsInline: true,
-          // };
-
-          // // setVideos((videos) => {
-          // //   const updatedVideos = [...videos, newVideo]; // spread operation used : when we don't want to used push
-          // videoRef.current = [...prev, newVideo];
-          // return [...prev, newVideo];
-          // // });
-          // return updatedVideos;
-          //   });
-          // };
-
-          // if (window.localStream !== undefined && window.localStream != null) {
-          //   window.localStream.getTracks().forEach((track) => {
-          //     connectionsRef.current Ref.current.addTrack(track, window.localStream);
-          //   });
-          // } else {
-          //   // TODO BLACKSILENCE
-          //   let blackSlience = (...args) =>
-          //     new MediaStream([black(...args), silence()]);
-          //   window.localStream = blackSlience();
-          //   //           window.localStream.getTracks().forEach(track => {
-          //   //   connectionsRef.current Ref.current.addTrack(track, window.localStream);
-          //   // });
-          // }
-        });
-
-        if (id === socketIdRef.current) {
-          clients.forEach((socketListId) => {
-            if (socketListId === socketIdRef.current) return;
-
-            const pc = connectionsRef.current[socketListId];
-            if (!pc) return;
-
-            pc.createOffer().then((offer) => {
-              pc.setLocalDescription(offer).then(() => {
-                socketRef.current.emit(
-                  "signal",
-                  socketListId,
-                  JSON.stringify({ sdp: pc.localDescription })
-                );
-              });
-            });
-          });
-        }
-      });
-    });
-  };
-
+     
   let getMedia = () => {
     setVideo(videoAvailable);
     setAudio(audioAvailable);

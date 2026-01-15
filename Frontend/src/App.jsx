@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import LandingPage from "./pages/landing";
 import Authentication from "./pages/authentication";
@@ -17,7 +16,8 @@ function App() {
           <Route path="/auth" element={<Authentication />} />
           <Route path="/home" element={<HomeComponent />} />
           <Route path="/history" element={<History />} />
-          <Route path="/:url" element={<VideoMeetComponent />} />
+
+          <Route path="/room/:roomId" element={<VideoMeetComponent />} />
         </Routes>
       </AuthProvider>
     </div>

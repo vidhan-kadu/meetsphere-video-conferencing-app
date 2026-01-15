@@ -3,10 +3,11 @@ dotenv.config();
 
 import express from "express";
 import { createServer } from "node:http";
-
 import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import userRoutes from "./routes/users.routes.js";
 import { connectToSocket } from "./controllers/socketManager.js";
@@ -14,7 +15,9 @@ import { connectToSocket } from "./controllers/socketManager.js";
 const app = express();
 const server = createServer(app);
 
-
+// 🔹 Required for ES modules (__dirname fix)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(
   cors({
@@ -28,8 +31,12 @@ app.use(express.urlencoded({ limit: "40kb", extended: true }));
 
 app.use("/api/v1/users", userRoutes);
 
-app.get("/home", (req, res) => {
-  res.json({ status: "MeetSphere backend running" });
+// 🔹 Serve frontend build
+app.use(express.static(path.join(__dirname, "Frontend/dist")));
+
+// 🔹 React Router fallback (VERY IMPORTANT)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "Frontend/dist", "index.html"));
 });
 connectToSocket(server);
 const PORT = process.env.PORT || 8000;

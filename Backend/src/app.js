@@ -15,10 +15,11 @@ import { connectToSocket } from "./controllers/socketManager.js";
 const app = express();
 const server = createServer(app);
 
-// 🔹 Required for ES modules (__dirname fix)
+// ES module fix
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// middleware
 app.use(
   cors({
     origin: "https://meetspherefrontend-no4f.onrender.com",
@@ -27,18 +28,22 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json({ limit: "40kb" }));
-app.use(express.urlencoded({ limit: "40kb", extended: true }));
+app.use(express.urlencoded({ extended: true }));
 
+// api routes
 app.use("/api/v1/users", userRoutes);
 
-// 🔹 Serve frontend build
+// serve frontend
 app.use(express.static(path.join(__dirname, "Frontend/dist")));
 
-// 🔹 React Router fallback (VERY IMPORTANT)
-app.get("*", (req, res) => {
+// ✅ React Router fallback (FIXED)
+app.get("/*", (req, res) => {
   res.sendFile(path.join(__dirname, "Frontend/dist", "index.html"));
 });
+
+// socket
 connectToSocket(server);
+
 const PORT = process.env.PORT || 8000;
 
 const start = async () => {
@@ -47,10 +52,10 @@ const start = async () => {
     console.log("MongoDB connected");
 
     server.listen(PORT, () => {
-      console.log("Connected to the DB");
+      console.log("Server running on port", PORT);
     });
   } catch (err) {
-    console.error("Mongo connection failed ", err.message);
+    console.error("Mongo connection failed:", err.message);
     process.exit(1);
   }
 };

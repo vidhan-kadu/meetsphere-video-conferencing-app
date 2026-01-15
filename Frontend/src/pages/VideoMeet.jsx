@@ -424,10 +424,7 @@ socketRef.current.off();
       return;
     }
 
-   socketRef.current.emit("join-call", {
-  roomId,
-  username,
-  });
+socketRef.current.emit("join-call", roomId); 
 
 
     socketRef.current.on("chat-message", addMessage);

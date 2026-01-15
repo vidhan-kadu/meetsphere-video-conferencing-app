@@ -1,23 +1,29 @@
-import react from "react";
-import withAuth from "../utils/withAuth";
-import { useNavigate } from "react-router-dom";
 import React, { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button, IconButton, TextField } from "@mui/material";
 import RestoreIcon from "@mui/icons-material/Restore";
-import "../App.css";
-import { AuthContext } from "../contexts/AuthContext";
 
+import withAuth from "../utils/withAuth";
+import { AuthContext } from "../contexts/AuthContext";
+import "../App.css";
 
 function HomeComponent() {
+  const navigate = useNavigate();
+  const { addToUserHistory } = useContext(AuthContext);
 
-
-  let navigate = useNavigate();
   const [meetingCode, setMeetingCode] = useState("");
 
-  const {addToUserHistory} = useContext(AuthContext);
-  let handleJoinVideoCall = async () => {
-    await addToUserHistory(meetingCode)
-    navigate(`/${meetingCode}`);
+  const handleJoinVideoCall = async () => {
+    const code = meetingCode.trim();
+    if (!code) return;
+
+    try {
+      await addToUserHistory(code);
+    } catch (err) {
+      console.error("History save failed:", err);
+    }
+
+    navigate(`/room/${code}`);
   };
 
   return (
@@ -27,17 +33,13 @@ function HomeComponent() {
           <h2>MeetSphere</h2>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center"}}>
-          <IconButton
-            onClick={() => {
-              navigate("/history");
-            }}
-          >
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <IconButton onClick={() => navigate("/history")}>
             <RestoreIcon />
           </IconButton>
           <p>History</p>
 
-          <Button 
+          <Button
             onClick={() => {
               localStorage.removeItem("token");
               navigate("/auth");
@@ -50,28 +52,28 @@ function HomeComponent() {
 
       <div className="meetContainer">
         <div className="leftPanel">
-          <div>
-            <h2>Providing Quality Video Call Just Like Quality Education</h2>
-            &nbsp;
-            <div style={{ display: "flex", gap: "10px" }}>
-              <TextField
-                onChange={(e) => setMeetingCode(e.target.value)}
-                id="outline-basic"
-                label="Meeting Code"
-                varient="outlined"
-              />
-              <Button onClick={handleJoinVideoCall} variant="contained">
-                Join
-              </Button>
-            </div>
+          <h2>Providing Quality Video Call Just Like Quality Education</h2>
+
+          <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+            <TextField
+              value={meetingCode}
+              onChange={(e) => setMeetingCode(e.target.value)}
+              label="Meeting Code"
+              variant="outlined"
+            />
+
+            <Button variant="contained" onClick={handleJoinVideoCall}>
+              Join
+            </Button>
           </div>
         </div>
+
         <div className="rightPanel">
-          <img srcSet="/logo.png" alt="" />
+          <img src="/logo.png" alt="MeetSphere" />
         </div>
       </div>
     </>
   );
 }
 
-export default withAuth(HomeComponent);
+export default withAuth(HomeComponent)

@@ -1,8 +1,6 @@
 import { Server } from "socket.io";
 
-let connections = {};
-let messages = {};
-let timeOnline = {};
+const messages = {};
 
 export const connectToSocket = (server) => {
   const io = new Server(server, {
@@ -13,25 +11,19 @@ export const connectToSocket = (server) => {
   });
 
   io.on("connection", (socket) => {
-    console.log("SOMETHING CONNECTED", socket.id);
+    console.log("CONNECTED:", socket.id);
 
     socket.on("join-call", (roomId) => {
-      console.log("Join call:", roomId, socket.id);
       socket.join(roomId);
 
-      if (!connections[roomId]) connections[roomId] = [];
-      if (!connections[roomId].includes(socket.id)) {
-        connections[roomId].push(socket.id);
-      }
+      const clients = Array.from(
+        io.sockets.adapter.rooms.get(roomId) || []
+      );
 
-      timeOnline[socket.id] = new Date();
-
-      // connections[path].forEach(elem => {
-      //     io.to(elem)
-      // })
-
-      connections[roomId].forEach((id) => {
-        io.to(id).emit("user-joined", socket.id, connections[roomId]);
+      clients.forEach((id) => {
+        if (id !== socket.id) {
+          io.to(id).emit("user-joined", socket.id, clients);
+        }
       });
 
       if (messages[roomId]) {
@@ -51,44 +43,22 @@ export const connectToSocket = (server) => {
     });
 
     socket.on("chat-message", (data, sender) => {
-      let roomId = null;
-
-      for (const [key, users] of Object.entries(connections)) {
-        if (users.includes(socket.id)) {
-          roomId = key;
-          break;
-        }
-      }
-
+      const rooms = [...socket.rooms].filter((r) => r !== socket.id);
+      const roomId = rooms[0];
       if (!roomId) return;
 
       if (!messages[roomId]) messages[roomId] = [];
-
       messages[roomId].push({ sender, data, socketId: socket.id });
 
-      connections[roomId].forEach((id) => {
-        io.to(id).emit("chat-message", data, sender, socket.id);
-      });
+      io.to(roomId).emit("chat-message", data, sender, socket.id);
     });
+
     socket.on("disconnect", () => {
-      console.log("Socket disconnected:", socket.id);
+      console.log("DISCONNECTED:", socket.id);
 
-      for (const [roomId, users] of Object.entries(connections)) {
-        if (users.includes(socket.id)) {
-          connections[roomId] = users.filter((id) => id !== socket.id);
-
-          connections[roomId].forEach((id) => {
-            io.to(id).emit("user-left", socket.id);
-          });
-
-          if (connections[roomId].length === 0) {
-            delete connections[roomId];
-            delete messages[roomId];
-          }
-          break;
-        }
-      }
-      delete timeOnline[socket.id];
+      socket.rooms.forEach((roomId) => {
+        socket.to(roomId).emit("user-left", socket.id);
+      });
     });
   });
 };

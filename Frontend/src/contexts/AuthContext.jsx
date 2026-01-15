@@ -7,7 +7,8 @@ import { StatusCodes } from "http-status-codes";
 export const AuthContext = createContext({});
 
 const client = axios.create({
-  baseURL: "http://localhost:8000/api/v1/users",
+  baseURL: `${import.meta.env.VITE_BACKEND_URL}/api/v1/users`,
+  withCredentials: true,
 });
 
 export const AuthProvider = ({ children }) => {

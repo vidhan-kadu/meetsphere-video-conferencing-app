@@ -312,36 +312,43 @@ useEffect(() => {
   }, [audio, video]);
 
   const gotMessageFromServer = (fromId, message) => {
+    console.log("Received signal from:", fromId);
     
-   const signal = JSON.parse(message);
+    const signal = JSON.parse(message);
 
-   if (fromId === socketIdRef.current) return;
+    if (fromId === socketIdRef.current) return;
 
-  const pc = connectionsRef.current[fromId];
-  if (!pc) return;
+    const pc = connectionsRef.current[fromId];
+    if (!pc) {
+      console.warn("No peer connection found for:", fromId);
+      return;
+    }
 
-  if (signal.sdp) {
-    pc.setRemoteDescription(new RTCSessionDescription(signal.sdp))
-      .then(() => {
-        if (signal.sdp.type === "offer") {
-          pc.createAnswer()
-            .then((answer) => pc.setLocalDescription(answer))
-            .then(() => {
-              socketRef.current.emit(
-                "signal",
-                fromId,
-                JSON.stringify({ sdp: pc.localDescription })
-              );
-            });
-        }
-      })
-      .catch(console.error);
-    };
+    if (signal.sdp) {
+      console.log("Received SDP:", signal.sdp.type, "from:", fromId);
+      pc.setRemoteDescription(new RTCSessionDescription(signal.sdp))
+        .then(() => {
+          if (signal.sdp.type === "offer") {
+            console.log("Creating answer for:", fromId);
+            pc.createAnswer()
+              .then((answer) => pc.setLocalDescription(answer))
+              .then(() => {
+                socketRef.current.emit(
+                  "signal",
+                  fromId,
+                  JSON.stringify({ sdp: pc.localDescription })
+                );
+                console.log("Sent answer to:", fromId);
+              });
+          }
+        })
+        .catch(console.error);
+    }
     
-  if (signal.ice) {
-    pc.addIceCandidate(new RTCIceCandidate(signal.ice))
-      .catch(console.error);
-  
+    if (signal.ice) {
+      console.log("Adding ICE candidate from:", fromId);
+      pc.addIceCandidate(new RTCIceCandidate(signal.ice))
+        .catch(console.error);
     }
   };
 
@@ -370,9 +377,12 @@ const handleUserLeft = (id) => {
 const handleUserJoined = (id, clients) => {
   // Skip if it's our own socket or if connection already exists
   if (id === socketIdRef.current) return;
-  if (connectionsRef.current[id]) return;
+  if (connectionsRef.current[id]) {
+    console.log("Connection already exists for:", id);
+    return;
+  }
 
-  console.log("User joined:", id);
+  console.log("User joined:", id, "- Creating peer connection");
 
   // Create peer connection for the new user
   const pc = new RTCPeerConnection(perrConfigConnection);
@@ -380,14 +390,20 @@ const handleUserJoined = (id, clients) => {
 
   // Add local tracks to the peer connection
   if (window.localStream) {
-    window.localStream.getTracks().forEach((track) => {
+    const tracks = window.localStream.getTracks();
+    console.log("Adding tracks to peer connection:", tracks.length);
+    tracks.forEach((track) => {
       pc.addTrack(track, window.localStream);
+      console.log("Added track:", track.kind);
     });
+  } else {
+    console.warn("No local stream available when user joined");
   }
 
   // Handle ICE candidates
   pc.onicecandidate = (event) => {
     if (event.candidate) {
+      console.log("Sending ICE candidate to:", id);
       socketRef.current.emit(
         "signal",
         id,
@@ -399,17 +415,32 @@ const handleUserJoined = (id, clients) => {
   // Handle incoming tracks from the new user
   pc.ontrack = (event) => {
     const stream = event.streams[0];
-    console.log("Received track from:", id);
+    console.log("Received track from:", id, "- Track kind:", event.track.kind);
     setVideos((prev) => {
       if (prev.find(v => v.socketId === id)) return prev;
+      console.log("Adding video stream for:", id);
       return [...prev, { socketId: id, stream }];
     });
   };
 
+  // Handle connection state changes
+  pc.onconnectionstatechange = () => {
+    console.log("Connection state with", id, ":", pc.connectionState);
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    console.log("ICE connection state with", id, ":", pc.iceConnectionState);
+  };
+
   // Create and send offer to the new user
+  console.log("Creating offer for:", id);
   pc.createOffer()
-    .then((offer) => pc.setLocalDescription(offer))
+    .then((offer) => {
+      console.log("Setting local description (offer) for:", id);
+      return pc.setLocalDescription(offer);
+    })
     .then(() => {
+      console.log("Sending offer to:", id);
       socketRef.current.emit(
         "signal",
         id,

@@ -1,3 +1,13 @@
+# Node
+node_modules/
+
+# Build output (frontend deployed separately)
+dist
+dist-ssr
+
+# Local env
+*.local
+
 # Logs
 logs
 *.log
@@ -7,14 +17,8 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+# Editor / OS
+.vscode/
 .idea
 .DS_Store
 *.suo

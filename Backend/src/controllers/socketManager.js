@@ -13,6 +13,7 @@ export const connectToSocket = async (server) => {
     transports: ["websocket", "polling"],
   });
 
+  // Setup Redis adapter if REDIS_URL is provided (for production with multiple instances)
   if (process.env.REDIS_URL) {
     try {
       const pubClient = createClient({ url: process.env.REDIS_URL });
@@ -32,20 +33,32 @@ export const connectToSocket = async (server) => {
 
     socket.on("join-call", (roomId) => {
       console.log(`Socket ${socket.id} joining room: ${roomId}`);
+      
+      // Get existing clients BEFORE joining
+      const existingClients = Array.from(
+        io.sockets.adapter.rooms.get(roomId) || []
+      ).filter(id => id !== socket.id);
+
+      // Now join the room
       socket.join(roomId);
 
-      const clients = Array.from(
+      const allClients = Array.from(
         io.sockets.adapter.rooms.get(roomId) || []
       );
 
-      console.log(`Room ${roomId} now has ${clients.length} clients:`, clients);
+      console.log(`Room ${roomId} now has ${allClients.length} clients:`, allClients);
 
-      clients.forEach((id) => {
-        if (id !== socket.id) {
-          console.log(`Notifying ${id} about new user ${socket.id}`);
-          io.to(id).emit("user-joined", socket.id, clients);
-        }
+      // Notify existing users about the new user (they should create offers)
+      existingClients.forEach((id) => {
+        console.log(`Notifying ${id} about new user ${socket.id}`);
+        io.to(id).emit("user-joined", socket.id, allClients);
       });
+
+      // Notify the new user about ALL existing users (they should create peer connections but NOT offers)
+      if (existingClients.length > 0) {
+        console.log(`Notifying new user ${socket.id} about ${existingClients.length} existing users`);
+        io.to(socket.id).emit("existing-users", existingClients);
+      }
 
       if (messages[roomId]) {
         messages[roomId].forEach((msg) => {

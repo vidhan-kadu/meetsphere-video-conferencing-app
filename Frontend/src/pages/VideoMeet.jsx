@@ -374,21 +374,19 @@ const handleUserLeft = (id) => {
   setVideos((prev) => prev.filter((v) => v.socketId !== id));
 };
 
-const handleUserJoined = (id, clients) => {
-  // Skip if it's our own socket or if connection already exists
-  if (id === socketIdRef.current) return;
+// Helper to create peer connection without sending offer
+const createPeerConnection = (id, shouldCreateOffer = false) => {
   if (connectionsRef.current[id]) {
     console.log("Connection already exists for:", id);
     return;
   }
 
-  console.log("User joined:", id, "- Creating peer connection");
+  console.log("Creating peer connection for:", id, "- Will create offer:", shouldCreateOffer);
 
-  // Create peer connection for the new user
   const pc = new RTCPeerConnection(perrConfigConnection);
   connectionsRef.current[id] = pc;
 
-  // Add local tracks to the peer connection
+  // Add local tracks
   if (window.localStream) {
     const tracks = window.localStream.getTracks();
     console.log("Adding tracks to peer connection:", tracks.length);
@@ -397,7 +395,7 @@ const handleUserJoined = (id, clients) => {
       console.log("Added track:", track.kind);
     });
   } else {
-    console.warn("No local stream available when user joined");
+    console.warn("No local stream available");
   }
 
   // Handle ICE candidates
@@ -412,7 +410,7 @@ const handleUserJoined = (id, clients) => {
     }
   };
 
-  // Handle incoming tracks from the new user
+  // Handle incoming tracks
   pc.ontrack = (event) => {
     const stream = event.streams[0];
     console.log("Received track from:", id, "- Track kind:", event.track.kind);
@@ -423,7 +421,7 @@ const handleUserJoined = (id, clients) => {
     });
   };
 
-  // Handle connection state changes
+  // Connection state monitoring
   pc.onconnectionstatechange = () => {
     console.log("Connection state with", id, ":", pc.connectionState);
   };
@@ -432,22 +430,42 @@ const handleUserJoined = (id, clients) => {
     console.log("ICE connection state with", id, ":", pc.iceConnectionState);
   };
 
-  // Create and send offer to the new user
-  console.log("Creating offer for:", id);
-  pc.createOffer()
-    .then((offer) => {
-      console.log("Setting local description (offer) for:", id);
-      return pc.setLocalDescription(offer);
-    })
-    .then(() => {
-      console.log("Sending offer to:", id);
-      socketRef.current.emit(
-        "signal",
-        id,
-        JSON.stringify({ sdp: pc.localDescription })
-      );
-    })
-    .catch((err) => console.error("Error creating offer:", err));
+  // Only create offer if we're the existing user
+  if (shouldCreateOffer) {
+    console.log("Creating offer for:", id);
+    pc.createOffer()
+      .then((offer) => {
+        console.log("Setting local description (offer) for:", id);
+        return pc.setLocalDescription(offer);
+      })
+      .then(() => {
+        console.log("Sending offer to:", id);
+        socketRef.current.emit(
+          "signal",
+          id,
+          JSON.stringify({ sdp: pc.localDescription })
+        );
+      })
+      .catch((err) => console.error("Error creating offer:", err));
+  }
+};
+
+// Handle when a new user joins (we should create offer)
+const handleUserJoined = (id, clients) => {
+  if (id === socketIdRef.current) return;
+  console.log("New user joined:", id, "- I should create offer");
+  createPeerConnection(id, true);
+};
+
+// Handle when we join and there are existing users (we should NOT create offers)
+const handleExistingUsers = (userIds) => {
+  console.log("Found existing users:", userIds);
+  userIds.forEach((id) => {
+    if (id !== socketIdRef.current) {
+      console.log("Creating connection for existing user:", id, "- Waiting for their offer");
+      createPeerConnection(id, false);
+    }
+  });
 };
 
 
@@ -481,6 +499,7 @@ socketRef.current.emit("join-call", roomId);
     socketRef.current.on("chat-message", addMessage);
     socketRef.current.on("user-left", handleUserLeft);
     socketRef.current.on("user-joined", handleUserJoined);
+    socketRef.current.on("existing-users", handleExistingUsers);
   });
 
   socketRef.current.on("disconnect", (reason) => {

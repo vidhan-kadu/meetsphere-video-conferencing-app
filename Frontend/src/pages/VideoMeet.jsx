@@ -99,13 +99,16 @@ export default function VideoMeetComponent() {
 
       if (!hasVideo && !hasAudio) {
         console.error("No camera or microphone found");
+        alert("No camera or microphone detected. Please connect devices and reload.");
         return;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: hasVideo, // false if no camera
-        audio: hasAudio, // true if mic exists
-      });
+      const constraints = {
+        video: hasVideo ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
+        audio: hasAudio ? { echoCancellation: true, noiseSuppression: true } : false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
       window.localStream = stream;
 
@@ -119,28 +122,37 @@ export default function VideoMeetComponent() {
       console.log("Stream started:", {
         video: hasVideo,
         audio: hasAudio,
+        browser: navigator.userAgent
+        browser: navigator.userAgent
       });
-      // if (navigator.mediaDevices.getDisplayMedia) {
-      //   setScreenAvailable(true);
-      // } else {
-      //   setScreenAvailable(false);
-      // }
-
-      // if (videoAvailable || audioAvailable) {
-      //   const userMediaStream = await navigator.mediaDevices.getUserMedia({
-      //     video: hasVideo,
-      //     audio: hasAudio,
-      //   });
-
-      //   if (userMediaStream) {
-      //     window.localStream = userMediaStream;
-      //     if (localVideoRef.current) {
-      //       localVideoRef.current.srcObject = userMediaStream; //intialize the stream  it's javascript object
-      //     }
-      //   }
-      // }
     } catch (err) {
       console.error("Media permission error:", err.name, err.message);
+      
+      // Provide user-friendly error messages
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        alert("Camera/microphone access denied. Please allow permissions in your browser settings.");
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        alert("No camera or microphone found. Please connect devices and reload.");
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        alert("Camera is being used by another application. Please close other apps and reload.\n\nFor Edge: Close all other browser tabs using the camera.");
+      } else if (err.name === "OverconstrainedError") {
+        alert("Camera constraints not supported. Using default settings.");
+        // Try again with basic constraints
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+          });
+          window.localStream = stream;
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream;
+          }
+        } catch (e) {
+          console.error("Fallback failed:", e);
+        }
+      } else {
+        alert(`Error accessing media devices: ${err.message}`);
+      }
     }
   };
   const startAudioOnly = async () => {
@@ -291,23 +303,58 @@ useEffect(() => {
   };
 
   let getUserMedia = async () => {
+    // Don't recreate stream on every toggle - just enable/disable tracks
+    if (window.localStream) {
+      const videoTrack = window.localStream.getVideoTracks()[0];
+      const audioTrack = window.localStream.getAudioTracks()[0];
+      
+      if (video) {
+        // Turning video ON - restore original camera track
+        if (videoTrack) {
+          videoTrack.enabled = true;
+          // Replace black screen with camera for all peers
+          for (let id in connectionsRef.current) {
+            const sender = connectionsRef.current[id]
+              .getSenders()
+              .find((s) => s.track && s.track.kind === "video");
+
+            if (sender && videoTrack) {
+              sender.replaceTrack(videoTrack);
+            }
+          }
+        }
+      } else {
+        // Video is OFF - handled by handleVideo
+        if (videoTrack) videoTrack.enabled = false;
+      }
+      
+      if (audioTrack) audioTrack.enabled = audio;
+      
+      console.log("Updated tracks - Video:", video, "Audio:", audio);
+      return;
+    }
+
+    // Only create new stream if we don't have one
     if ((video && videoAvailable) || (audio && audioAvailable)) {
-      navigator.mediaDevices
-        .getUserMedia({ video: video, audio: audio })
-        .then(getUserMediaSuccess) //TODO: getUserMediaSuccess
-        // .then((stream) => {})                                                     //temporary for black screen error
-        .catch((e) => console.log(e));
-    } else {
       try {
-        let tracks = localVideoRef.current.srcObject.getTracks();
-        tracks.forEach((track) => track.stop());
-      } catch (e) {}
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: video && videoAvailable, 
+          audio: audio && audioAvailable 
+        });
+        getUserMediaSuccess(stream);
+      } catch (e) {
+        console.error("getUserMedia error:", e);
+        // Handle camera in use error
+        if (e.name === "NotReadableError" || e.name === "AbortError") {
+          alert("Camera is being used by another application. Please close other apps using the camera.");
+        }
+      }
     }
   };
 
   useEffect(() => {
     if (video !== undefined && audio !== undefined) {
-      getUserMedia(); //temorary for black screen error
+      getUserMedia();
     }
   }, [audio, video]);
 
@@ -523,11 +570,50 @@ socketRef.current.emit("join-call", roomId);
     setMessage("");
   };
 
-  let handleVideo = () => {
+  let handleVideo = async () => {
+    if (window.localStream) {
+      const videoTrack = window.localStream.getVideoTracks()[0];
+      
+      if (!video) {
+        // Turning video ON
+        if (videoTrack) {
+          videoTrack.enabled = true;
+          console.log("Video track enabled");
+        }
+      } else {
+        // Turning video OFF - replace with black screen for peers
+        console.log("Turning video off - showing black screen");
+        const blackTrack = black();
+        
+        // Replace video track for all peers
+        for (let id in connectionsRef.current) {
+          const sender = connectionsRef.current[id]
+            .getSenders()
+            .find((s) => s.track && s.track.kind === "video");
+
+          if (sender) {
+            sender.replaceTrack(blackTrack);
+            console.log("Replaced video with black screen for:", id);
+          }
+        }
+        
+        // Update local video
+        if (videoTrack) {
+          videoTrack.enabled = false;
+        }
+      }
+    }
     setVideo(!video);
   };
 
   let handleAudio = () => {
+    if (window.localStream) {
+      const audioTrack = window.localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audio;
+        console.log("Audio track enabled:", !audio);
+      }
+    }
     setAudio(!audio);
   };
 
@@ -562,10 +648,36 @@ socketRef.current.emit("join-call", roomId);
     }
     screenTrack.onended = async () => {
       try {
-        console.log("Screen Share ended,resoring camera");
+        console.log("Screen Share ended, restoring camera");
         setScreen(false);
+        
+        // Restore camera
+        const camStream = await navigator.mediaDevices.getUserMedia({
+          video: videoAvailable,
+          audio: audioAvailable,
+        });
+
+        window.localStream = camStream;
+
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = camStream;
+        }
+
+        const camTrack = camStream.getVideoTracks()[0];
+
+        // Replace screen track with camera track for all peers
+        for (let id in connectionsRef.current) {
+          const sender = connectionsRef.current[id]
+            .getSenders()
+            .find((s) => s.track && s.track.kind === "video");
+
+          if (sender && camTrack) {
+            sender.replaceTrack(camTrack);
+            console.log("Replaced screen track with camera for:", id);
+          }
+        }
       } catch (err) {
-        console.log("failed to resolve camera", err);
+        console.log("Failed to restore camera:", err);
       }
     };
 
@@ -609,13 +721,18 @@ socketRef.current.emit("join-call", roomId);
   }, [screen]);
 
   let handleScreen = async () => {
-    console.log("Screen button clicked.Current state:", screen);
-    if (screen && window.localStream) {
-      console.log("stopping screen share manually");
+    console.log("Screen button clicked. Current state:", screen);
+    
+    if (screen) {
+      // Currently sharing - stop and restore camera
+      console.log("Stopping screen share manually");
 
-      window.localStream.getTracks().forEach((t) => t.stop());
+      if (window.localStream) {
+        window.localStream.getTracks().forEach((t) => t.stop());
+      }
+
       const camStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: videoAvailable,
         audio: audioAvailable,
       });
 
@@ -624,6 +741,7 @@ socketRef.current.emit("join-call", roomId);
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = camStream;
       }
+      
       const camTrack = camStream.getVideoTracks()[0];
 
       for (let id in connectionsRef.current) {
@@ -631,11 +749,17 @@ socketRef.current.emit("join-call", roomId);
           .getSenders()
           .find((s) => s.track && s.track.kind === "video");
 
-        if (sender) sender.replaceTrack(camTrack);
+        if (sender && camTrack) {
+          sender.replaceTrack(camTrack);
+          console.log("Replaced screen with camera for:", id);
+        }
       }
+      
+      setScreen(false);
+    } else {
+      // Not sharing - start screen share
+      setScreen(true);
     }
-
-    setScreen((prev) => !prev);
   };
   return (
     <div>

@@ -3,15 +3,22 @@
   width: 100vw;
   height: 100vh;
   background: rgb(3, 20, 66);
+  overflow: hidden;
+}
+
+.videoWrapper {
+  position: absolute;
+  bottom: 10vh;
+  left: 10px;
+  z-index: 10;
 }
 
 .meetUserVideo {
-  position: absolute;
-  bottom: 10vh;
   height: 20vh;
   width: auto;
-  left: 0;
+  max-width: 25vw;
   border-radius: 20px;
+  border: 2px solid white;
 }
 
 .buttonContainer {
@@ -19,36 +26,99 @@
   width: 100%;
   bottom: 0;
   text-align: center;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 20;
 }
 
 .buttonContainer svg {
-  font-size: 3rem;
+  font-size: 2.5rem;
 }
 
 .conferenceView {
   display: flex;
+  flex-wrap: wrap;
   padding: 10px;
   gap: 10px;
+  height: 90vh;
+  align-items: center;
+  justify-content: center;
+}
+
+.conferenceView > div {
+  flex: 1;
+  min-width: 300px;
+  max-width: 100%;
 }
 
 .conferenceView video {
-  width: 40vw;
-  height: 20vw;
-  min-width: 30vw;
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
   border-radius: 10px;
+  object-fit: contain;
 }
 
-
 .chatRoom{
-     position: absolute;
-    height: 90vh;
-    width:40vh; 
-    right: 0;
-    background-color: aliceblue;
-    border-radius: 10px;
-    bottom:10vh;
-    padding-inline: 20px;
+  position: absolute;
+  height: 90vh;
+  width: 40vh; 
+  right: 0;
+  background-color: aliceblue;
+  border-radius: 10px;
+  bottom: 10vh;
+  padding-inline: 20px;
+  z-index: 15;
+}
 
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .meetUserVideo {
+    height: 15vh;
+    max-width: 35vw;
+    border-radius: 10px;
+  }
+
+  .buttonContainer svg {
+    font-size: 2rem;
+  }
+
+  .chatRoom {
+    width: 100vw;
+    height: 70vh;
+    right: 0;
+    bottom: 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .conferenceView {
+    padding: 5px;
+    gap: 5px;
+  }
+
+  .conferenceView > div {
+    min-width: 100%;
+  }
+
+  .conferenceView video {
+    max-height: 60vh;
+  }
+}
+
+/* Small mobile screens */
+@media (max-width: 480px) {
+  .meetUserVideo {
+    height: 12vh;
+    max-width: 40vw;
+  }
+
+  .buttonContainer {
+    padding: 10px 5px;
+  }
+
+  .buttonContainer svg {
+    font-size: 1.8rem;
+  }
 }
 
 .chattingDisplay{

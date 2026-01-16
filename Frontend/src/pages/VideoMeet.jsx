@@ -569,6 +569,30 @@ socketRef.current.emit("join-call", roomId);
   let getMedia = () => {
     setVideo(videoAvailable);
     setAudio(audioAvailable);
+    
+    // Ensure tracks match the state we just set and video element is updated
+    if (window.localStream) {
+      const videoTrack = window.localStream.getVideoTracks()[0];
+      const audioTrack = window.localStream.getAudioTracks()[0];
+      
+      if (videoTrack) {
+        videoTrack.enabled = videoAvailable;
+        console.log("Video track set to:", videoAvailable, "- Track state:", videoTrack.readyState);
+      }
+      if (audioTrack) {
+        audioTrack.enabled = audioAvailable;
+        console.log("Audio track set to:", audioAvailable, "- Track state:", audioTrack.readyState);
+      }
+      
+      // Ensure local video element is displaying the stream
+      if (localVideoRef.current && localVideoRef.current.srcObject !== window.localStream) {
+        localVideoRef.current.srcObject = window.localStream;
+        localVideoRef.current.play().catch(e => console.log("Local video play error:", e));
+      }
+      
+      console.log("Media initialized - Video:", videoAvailable, "Audio:", audioAvailable);
+    }
+    
     connectToSocket();
   };
 

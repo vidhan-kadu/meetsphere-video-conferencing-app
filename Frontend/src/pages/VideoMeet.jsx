@@ -368,47 +368,65 @@ const handleUserLeft = (id) => {
 };
 
 const handleUserJoined = (id, clients) => {
-  clients.forEach((socketListId) => {
-    if (socketListId === socketIdRef.current) return;
-    if (connectionsRef.current[socketListId]) return;
+  // Skip if it's our own socket or if connection already exists
+  if (id === socketIdRef.current) return;
+  if (connectionsRef.current[id]) return;
 
-    const pc = new RTCPeerConnection(perrConfigConnection);
-    connectionsRef.current[socketListId] = pc;
+  console.log("User joined:", id);
 
-    if (window.localStream) {
-  window.localStream.getTracks().forEach((track) => {
-    pc.addTrack(track, window.localStream);
-  });
-}
+  // Create peer connection for the new user
+  const pc = new RTCPeerConnection(perrConfigConnection);
+  connectionsRef.current[id] = pc;
 
+  // Add local tracks to the peer connection
+  if (window.localStream) {
+    window.localStream.getTracks().forEach((track) => {
+      pc.addTrack(track, window.localStream);
+    });
+  }
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socketRef.current.emit(
-          "signal",
-          socketListId,
-          JSON.stringify({ ice: event.candidate })
-        );
-      }
-    };
+  // Handle ICE candidates
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      socketRef.current.emit(
+        "signal",
+        id,
+        JSON.stringify({ ice: event.candidate })
+      );
+    }
+  };
 
-    pc.ontrack = (event) => {
-      const stream = event.streams[0];
-      setVideos((prev) => {
-  if (prev.find(v => v.socketId === socketListId)) return prev;
-  return [...prev, { socketId: socketListId, stream }];
-});
+  // Handle incoming tracks from the new user
+  pc.ontrack = (event) => {
+    const stream = event.streams[0];
+    console.log("Received track from:", id);
+    setVideos((prev) => {
+      if (prev.find(v => v.socketId === id)) return prev;
+      return [...prev, { socketId: id, stream }];
+    });
+  };
 
-    };
-  });
+  // Create and send offer to the new user
+  pc.createOffer()
+    .then((offer) => pc.setLocalDescription(offer))
+    .then(() => {
+      socketRef.current.emit(
+        "signal",
+        id,
+        JSON.stringify({ sdp: pc.localDescription })
+      );
+    })
+    .catch((err) => console.error("Error creating offer:", err));
 };
 
 
 const connectToSocket = () => {
   if (socketRef.current?.connected) return;
 
+  console.log("Connecting to socket server:", server_url);
+
   socketRef.current = io(server_url, {
-    transports: ["websocket"],
+    transports: ["websocket", "polling"],
     withCredentials: true,
   });
 
@@ -418,18 +436,28 @@ socketRef.current.off();
 
   socketRef.current.on("connect", () => {
     socketIdRef.current = socketRef.current.id;
+    console.log("Socket connected:", socketIdRef.current);
 
     if (!roomId) {
       console.error("Room ID missing");
       return;
     }
 
+    console.log("Joining room:", roomId);
 socketRef.current.emit("join-call", roomId); 
 
 
     socketRef.current.on("chat-message", addMessage);
     socketRef.current.on("user-left", handleUserLeft);
     socketRef.current.on("user-joined", handleUserJoined);
+  });
+
+  socketRef.current.on("disconnect", (reason) => {
+    console.log("Socket disconnected:", reason);
+  });
+
+  socketRef.current.on("connect_error", (error) => {
+    console.error("Socket connection error:", error);
   });
 };
 

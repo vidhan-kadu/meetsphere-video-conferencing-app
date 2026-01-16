@@ -31,7 +31,7 @@ app.get("/", (req, res) => {
   res.send("MeetSphere Backend Running 🚀");
 });
 
-connectToSocket(server);
+await connectToSocket(server);
 
 const PORT = process.env.PORT || 8000;
 

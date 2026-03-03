@@ -23,24 +23,24 @@ import MicOffIcon from "@mui/icons-material/MicOff";
 import ScreenShareIcon from "@mui/icons-material/ScreenShare";
 import StopScreenShareIcon from "@mui/icons-material/StopScreenShare";
 import ChatIcon from "@mui/icons-material/Chat";
-import { useParams } from "react-router-dom";
-import React, { useEffect, useRef, useState } from "react";
+
+import React, { use, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
 import styles from "../styles/videoComponent.module.css";
 import { useNavigate } from "react-router-dom";
 
-const server_url = import.meta.env.VITE_BACKEND_URL;
+const server_url = "http://localhost:8000";
+const connections = {};
 
 const perrConfigConnection = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 };
 
 export default function VideoMeetComponent() {
-    const { roomId } = useParams();
   var socketRef = useRef();
   let socketIdRef = useRef();
-  const connectionsRef = useRef({});
+
   let localVideoRef = useRef();
 
   let [videoAvailable, setVideoAvailable] = useState(true);
@@ -61,13 +61,13 @@ export default function VideoMeetComponent() {
 
   let [message, setMessage] = useState("");
 
-  let [newMessages, setNewMessages] = useState(0);
+  let [newMessages, setNewMessages] = useState(3);
 
   let [askForUsername, setAskForUsername] = useState(true);
 
   let [username, setUsername] = useState("");
 
-  // const videoRef = useRef([]);
+  const videoRef = useRef([]);
 
   let [videos, setVideos] = useState([]);
 
@@ -88,9 +88,6 @@ export default function VideoMeetComponent() {
   // };
 
   const getPermissions = async () => {
-    // Always check if screen sharing is available, regardless of camera
-    setScreenAvailable(!!navigator.mediaDevices.getDisplayMedia);
-
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
 
@@ -102,81 +99,48 @@ export default function VideoMeetComponent() {
 
       if (!hasVideo && !hasAudio) {
         console.error("No camera or microphone found");
-        alert("No camera or microphone detected. Please connect devices and reload.");
         return;
       }
 
-      // Try with ideal constraints first
-      let stream;
-      try {
-        const constraints = {
-          video: hasVideo ? { 
-            width: { ideal: 1280, max: 1920 }, 
-            height: { ideal: 720, max: 1080 },
-            facingMode: "user"
-          } : false,
-          audio: hasAudio ? { 
-            echoCancellation: true, 
-            noiseSuppression: true,
-            autoGainControl: true
-          } : false
-        };
-
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log("Stream started with ideal constraints");
-      } catch (err) {
-        console.warn("Ideal constraints failed, trying basic:", err.name);
-        // Fallback to basic constraints for Edge and older browsers
-        const basicConstraints = {
-          video: hasVideo ? true : false,
-          audio: hasAudio ? true : false
-        };
-        stream = await navigator.mediaDevices.getUserMedia(basicConstraints);
-        console.log("Stream started with basic constraints");
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: hasVideo, // false if no camera
+        audio: hasAudio, // true if mic exists
+      });
 
       window.localStream = stream;
 
       // Attach stream
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
-        // Force video to play
-        localVideoRef.current.play().catch(e => console.log("Video play error:", e));
       }
+
+      setScreenAvailable(!!navigator.mediaDevices.getDisplayMedia);
 
       console.log("Stream started:", {
         video: hasVideo,
         audio: hasAudio,
-        tracks: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })),
-        browser: navigator.userAgent
       });
+      // if (navigator.mediaDevices.getDisplayMedia) {
+      //   setScreenAvailable(true);
+      // } else {
+      //   setScreenAvailable(false);
+      // }
+
+      // if (videoAvailable || audioAvailable) {
+      //   const userMediaStream = await navigator.mediaDevices.getUserMedia({
+      //     video: hasVideo,
+      //     audio: hasAudio,
+      //   });
+
+      //   if (userMediaStream) {
+      //     window.localStream = userMediaStream;
+      //     if (localVideoRef.current) {
+      //       localVideoRef.current.srcObject = userMediaStream; //intialize the stream  it's javascript object
+      //     }
+      //   }
+      // }
     } catch (err) {
       console.error("Media permission error:", err.name, err.message);
-      
-      // Provide user-friendly error messages
-      let errorMessage = "";
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        errorMessage = "Camera/microphone access denied. Please allow permissions in your browser settings and reload.";
-      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        errorMessage = "No camera or microphone found. Please connect devices and reload.";
-      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
-        errorMessage = "Camera is being used by another application.\n\n";
-        errorMessage += "Solutions:\n";
-        errorMessage += "• Close other apps using camera (Zoom, Teams, etc.)\n";
-        errorMessage += "• Close other browser tabs using camera\n";
-        errorMessage += "• Restart your browser\n";
-        errorMessage += "\nYou can still join with audio only or use screen share.";
-      } else if (err.name === "OverconstrainedError" || err.name === "AbortError") {
-        errorMessage = "Camera settings not supported. This has been reported. You can still use screen share or audio.";
-      } else {
-        errorMessage = `Error accessing media: ${err.message}\n\nYou can still use screen share or join with audio only.`;
-      }
-      
-      alert(errorMessage);
-      
-      // Even if camera fails, enable screen sharing
-      setScreenAvailable(!!navigator.mediaDevices.getDisplayMedia);
-      console.log("Screen share available despite camera error:", !!navigator.mediaDevices.getDisplayMedia);
     }
   };
   const startAudioOnly = async () => {
@@ -204,18 +168,8 @@ export default function VideoMeetComponent() {
     }
   };
 
-useEffect(() => {
-  if (!roomId) return;
-  getPermissions();
-}, [roomId]);
-
   useEffect(() => {
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        console.log("Socket disconnected on unmount");
-      }
-    };
+    getPermissions();
   }, []);
 
   let getUserMediaSuccess = (stream) => {
@@ -233,19 +187,19 @@ useEffect(() => {
 
     // localVideoRef.current.srcObject = stream;
 
-    // for (let id in connectionsRef.current ) {
+    // for (let id in connections) {
     //   if (id === socketIdRef.current) continue;          //temporray for black screeen error
     ////////////////////////////
     //       window.localStream.getTracks().forEach(track => {
-    //   connectionsRef.current [id].addTrack(track, window.localStream);
+    //   connections[id].addTrack(track, window.localStream);
     // });
 
-    //     connectionsRef.current [id].createOffer().then((offer) => {
-    //   connectionsRef.current [id].setLocalDescription(offer).then(() => {
+    //     connections[id].createOffer().then((offer) => {
+    //   connections[id].setLocalDescription(offer).then(() => {
     //     socketRef.current.emit(
     //       "signal",
     //       id,
-    //       JSON.stringify({ sdp: connectionsRef.current [id].localDescription })
+    //       JSON.stringify({ sdp: connections[id].localDescription })
     //     );
     //   });
     // });
@@ -271,16 +225,16 @@ useEffect(() => {
           //   localVideoRef.current.srcObject = window.localStream;
           // }
 
-          //         for (let id in connectionsRef.current ) {
+          //         for (let id in connections) {
           //            window.localStream.getTracks().forEach(track => {
-          //   connectionsRef.current [id].addTrack(track, window.localStream);
+          //   connections[id].addTrack(track, window.localStream);
           // });
-          //          const offer =  connectionsRef.current [id].createOffer();
-          //   connectionsRef.current [id].setLocalDescription(offer);
+          //          const offer =  connections[id].createOffer();
+          //   connections[id].setLocalDescription(offer);
           //                 socketRef.current.emit(
           //                   "signal",
           //                   id,
-          //                   JSON.stringify({ sdp: connectionsRef.current [id].localDescription })
+          //                   JSON.stringify({ sdp: connections[id].localDescription })
           //                 );
 
           //               // .catch((e) => console.log(e));
@@ -292,8 +246,8 @@ useEffect(() => {
 
           //   const cameraTrack = stream.getVideoTracks()[0];
 
-          //   for(let id in connectionsRef.current ){
-          //     const sender = connectionsRef.current [id]
+          //   for(let id in connections){
+          //     const sender = connections[id]
           //     .getSender()
           //     .find(s=> s.track && s.track.kind === "video");
 
@@ -327,82 +281,66 @@ useEffect(() => {
   };
 
   let getUserMedia = async () => {
-    // Only create stream if we don't have one yet
-    if (window.localStream) {
-      // Stream already exists, just enable/disable tracks
-      const videoTrack = window.localStream.getVideoTracks()[0];
-      const audioTrack = window.localStream.getAudioTracks()[0];
-      
-      if (videoTrack) videoTrack.enabled = video;
-      if (audioTrack) audioTrack.enabled = audio;
-      
-      console.log("Updated tracks - Video:", video, "Audio:", audio);
-      return;
-    }
-
-    // Only create new stream if we don't have one
     if ((video && videoAvailable) || (audio && audioAvailable)) {
+      navigator.mediaDevices
+        .getUserMedia({ video: video, audio: audio })
+        .then(getUserMediaSuccess) //TODO: getUserMediaSuccess
+        // .then((stream) => {})                                                     //temporary for black screen error
+        .catch((e) => console.log(e));
+    } else {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: video && videoAvailable, 
-          audio: audio && audioAvailable 
-        });
-        getUserMediaSuccess(stream);
-      } catch (e) {
-        console.error("getUserMedia error:", e);
-        // Handle camera in use error
-        if (e.name === "NotReadableError" || e.name === "AbortError") {
-          alert("Camera is being used by another application. Please close other apps using the camera.");
-        }
-      }
+        let tracks = localVideoRef.current.srcObject.getTracks();
+        tracks.forEach((track) => track.stop());
+      } catch (e) {}
     }
   };
 
   useEffect(() => {
-    if (video !== undefined && audio !== undefined && !window.localStream) {
-      // Only run if we don't have a stream yet
-      getUserMedia();
+    if (video !== undefined && audio !== undefined) {
+      getUserMedia(); //temorary for black screen error
     }
   }, [audio, video]);
 
   const gotMessageFromServer = (fromId, message) => {
-    console.log("Received signal from:", fromId);
-    
-    const signal = JSON.parse(message);
+    var signal = JSON.parse(message);
 
-    if (fromId === socketIdRef.current) return;
-
-    const pc = connectionsRef.current[fromId];
-    if (!pc) {
-      console.warn("No peer connection found for:", fromId);
-      return;
-    }
-
-    if (signal.sdp) {
-      console.log("Received SDP:", signal.sdp.type, "from:", fromId);
-      pc.setRemoteDescription(new RTCSessionDescription(signal.sdp))
-        .then(() => {
-          if (signal.sdp.type === "offer") {
-            console.log("Creating answer for:", fromId);
-            pc.createAnswer()
-              .then((answer) => pc.setLocalDescription(answer))
-              .then(() => {
-                socketRef.current.emit(
-                  "signal",
-                  fromId,
-                  JSON.stringify({ sdp: pc.localDescription })
-                );
-                console.log("Sent answer to:", fromId);
-              });
-          }
-        })
-        .catch(console.error);
-    }
-    
-    if (signal.ice) {
-      console.log("Adding ICE candidate from:", fromId);
-      pc.addIceCandidate(new RTCIceCandidate(signal.ice))
-        .catch(console.error);
+    if (fromId !== socketIdRef.current) {
+      if (signal.sdp) {
+        console.log("Remote SDP:", signal.sdp);
+        connections[fromId]
+          .setRemoteDescription(new RTCSessionDescription(signal.sdp))
+          .then(() => {
+            if (signal.sdp.type === "offer") {
+              connections[fromId]
+                .createAnswer()
+                .then((description) => {
+                  connections[fromId]
+                    .setLocalDescription(description)
+                    .then(() => {
+                      console.log(
+                        "Local Answer SDP:",
+                        connections[fromId].localDescription
+                      );
+                      socketRef.current.emit(
+                        "signal",
+                        fromId,
+                        JSON.stringify({
+                          sdp: connections[fromId].localDescription,
+                        })
+                      );
+                    })
+                    .catch((e) => console.log(e));
+                })
+                .catch((e) => console.log(e));
+            }
+          })
+          .catch((e) => console.log(e));
+      }
+      if (signal.ice) {
+        connections[fromId]
+          .addIceCandidate(new RTCIceCandidate(signal.ice))
+          .catch((e) => console.log(e));
+      }
     }
   };
 
@@ -417,182 +355,157 @@ useEffect(() => {
     }
   };
 
-// ================= SOCKET HELPERS =================
-
-const handleUserLeft = (id) => {
-  if (connectionsRef.current[id]) {
-    connectionsRef.current[id].close();
-    delete connectionsRef.current[id];
-  }
-
-  setVideos((prev) => prev.filter((v) => v.socketId !== id));
-};
-
-// Helper to create peer connection without sending offer
-const createPeerConnection = (id, shouldCreateOffer = false) => {
-  if (connectionsRef.current[id]) {
-    console.log("Connection already exists for:", id);
-    return;
-  }
-
-  console.log("Creating peer connection for:", id, "- Will create offer:", shouldCreateOffer);
-
-  const pc = new RTCPeerConnection(perrConfigConnection);
-  connectionsRef.current[id] = pc;
-
-  // Add local tracks
-  if (window.localStream) {
-    const tracks = window.localStream.getTracks();
-    console.log("Adding tracks to peer connection:", tracks.length);
-    tracks.forEach((track) => {
-      pc.addTrack(track, window.localStream);
-      console.log("Added track:", track.kind);
+  const connectToSocket = () => {
+    //connection of socketIO
+    socketRef.current = io(server_url, {
+      transports: ["websocket"],
     });
-  } else {
-    console.warn("No local stream available");
-  }
 
-  // Handle ICE candidates
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      console.log("Sending ICE candidate to:", id);
-      socketRef.current.emit(
-        "signal",
-        id,
-        JSON.stringify({ ice: event.candidate })
-      );
-    }
-  };
+    socketRef.current.on("signal", gotMessageFromServer);
 
-  // Handle incoming tracks
-  pc.ontrack = (event) => {
-    const stream = event.streams[0];
-    console.log("Received track from:", id, "- Track kind:", event.track.kind);
-    setVideos((prev) => {
-      if (prev.find(v => v.socketId === id)) return prev;
-      console.log("Adding video stream for:", id);
-      return [...prev, { socketId: id, stream }];
-    });
-  };
+    socketRef.current.on("connect", () => {
+      console.log("CONNECTED TO SOCKET SERVER", socketRef.current.id);
 
-  // Connection state monitoring
-  pc.onconnectionstatechange = () => {
-    console.log("Connection state with", id, ":", pc.connectionState);
-  };
+      socketIdRef.current = socketRef.current.id;
 
-  pc.oniceconnectionstatechange = () => {
-    console.log("ICE connection state with", id, ":", pc.iceConnectionState);
-  };
+      socketRef.current.emit("join-call", window.location.href);
 
-  // Only create offer if we're the existing user
-  if (shouldCreateOffer) {
-    console.log("Creating offer for:", id);
-    pc.createOffer()
-      .then((offer) => {
-        console.log("Setting local description (offer) for:", id);
-        return pc.setLocalDescription(offer);
-      })
-      .then(() => {
-        console.log("Sending offer to:", id);
-        socketRef.current.emit(
-          "signal",
-          id,
-          JSON.stringify({ sdp: pc.localDescription })
+      socketRef.current.on("chat-message", addMessage);
+
+      socketRef.current.on("user-left", (id) => {
+        setVideos((prev) =>
+          Array.isArray(prev) ? prev.filter((v) => v.socketId !== id) : []
         );
-      })
-      .catch((err) => console.error("Error creating offer:", err));
-  }
-};
+      });
 
-// Handle when a new user joins (we should create offer)
-const handleUserJoined = (id, clients) => {
-  if (id === socketIdRef.current) return;
-  console.log("New user joined:", id, "- I should create offer");
-  createPeerConnection(id, true);
-};
+      socketRef.current.on("user-joined", (id, clients) => {
+        clients.forEach((socketListId) => {
+          if (socketListId === socketIdRef.current) return;
+          connections[socketListId] = new RTCPeerConnection(
+            perrConfigConnection
+          );
 
-// Handle when we join and there are existing users (we should NOT create offers)
-const handleExistingUsers = (userIds) => {
-  console.log("Found existing users:", userIds);
-  userIds.forEach((id) => {
-    if (id !== socketIdRef.current) {
-      console.log("Creating connection for existing user:", id, "- Waiting for their offer");
-      createPeerConnection(id, false);
-    }
-  });
-};
+          window.localStream.getTracks().forEach((track) => {
+            const senders = connections[socketListId].getSenders();
 
+            const alreadyAdded = senders.some(
+              (sender) => sender.track && sender.track.id === track.id
+            );
 
-const connectToSocket = () => {
-  if (socketRef.current?.connected) return;
+            if (!alreadyAdded) {
+              connections[socketListId].addTrack(track, window.localStream);
+            }
+          });
 
-  console.log("Connecting to socket server:", server_url);
+          connections[socketListId].onicecandidate = (event) => {
+            if (event.candidate != null) {
+              socketRef.current.emit(
+                "signal",
+                socketListId,
+                JSON.stringify({ ice: event.candidate })
+              );
+            }
+          };
+          connections[socketListId].ontrack = (event) => {
+            const stream = event.streams[0];
+            setVideos((prev) => {
+              const existing = prev.find((v) => v.socketId === socketListId);
 
-  socketRef.current = io(server_url, {
-    transports: ["websocket", "polling"],
-    withCredentials: true,
-  });
+              if (existing) {
+                return prev.map((v) =>
+                  v.socketId === socketListId ? { ...v, stream } : v
+                );
+              }
 
-socketRef.current.off();
+              return [
+                ...prev,
+                {
+                  socketId: socketListId,
+                  stream,
+                },
+              ];
+            });
+          };
 
-  socketRef.current.on("signal", gotMessageFromServer);
+          // })
+          //   (video) => video.socketId === socketListId
+          // );
+          // if (videoExists) return;
+          //   setVideos((videos) => {
+          //     const updatedVideos = videos.map((video) =>
+          //       video.socketId === socketListId
+          //         ? { ...video, stream: event.stream }
+          //         : video
+          //     );
+          //     videoRef.current = updatedVideos;
+          //     return updatedVideos;
+          //   });
+          // } else {
+          // const newVideo = {
+          //   socketId: socketListId,
+          //   stream,                                              //temporary for black screen error
+          //   autoplay: true,
+          //   playsInline: true,
+          // };
 
-  socketRef.current.on("connect", () => {
-    socketIdRef.current = socketRef.current.id;
-    console.log("Socket connected:", socketIdRef.current);
+          // // setVideos((videos) => {
+          // //   const updatedVideos = [...videos, newVideo]; // spread operation used : when we don't want to used push
+          // videoRef.current = [...prev, newVideo];
+          // return [...prev, newVideo];
+          // // });
+          // return updatedVideos;
+          //   });
+          // };
 
-    if (!roomId) {
-      console.error("Room ID missing");
-      return;
-    }
+          // if (window.localStream !== undefined && window.localStream != null) {
+          //   window.localStream.getTracks().forEach((track) => {
+          //     connections[socketListId].addTrack(track, window.localStream);
+          //   });
+          // } else {
+          //   // TODO BLACKSILENCE
+          //   let blackSlience = (...args) =>
+          //     new MediaStream([black(...args), silence()]);
+          //   window.localStream = blackSlience();
+          //   //           window.localStream.getTracks().forEach(track => {
+          //   //   connections[socketListId].addTrack(track, window.localStream);
+          //   // });
+          // }
+        });
 
-    console.log("Joining room:", roomId);
-socketRef.current.emit("join-call", roomId); 
+        if (id === socketIdRef.current) {
+          for (let id2 in connections) {
+            if (id2 === socketIdRef.current) continue;
 
+            //           try {
+            //             window.localStream.getTracks().forEach(track => {
+            //   connections[id2].addTrack(track, window.localStream);
+            // });
+            //           } catch (e) {}
 
-    socketRef.current.on("chat-message", addMessage);
-    socketRef.current.on("user-left", handleUserLeft);
-    socketRef.current.on("user-joined", handleUserJoined);
-    socketRef.current.on("existing-users", handleExistingUsers);
-  });
+            connections[id2].createOffer().then((offer) => {
+              connections[id2].setLocalDescription(offer).then(() => {
+                console.log(
+                  "Local Offer SDP:",
+                  connections[id2].localDescription
+                );
+                socketRef.current.emit(
+                  "signal",
+                  id2,
+                  JSON.stringify({ sdp: connections[id2].localDescription }) // section description (sdp) this is  crucial part od webrtc//
+                ); // mainly localdescrition handshake between two peer conneecion and exhanged it then connection  established //
 
-  socketRef.current.on("disconnect", (reason) => {
-    console.log("Socket disconnected:", reason);
-  });
+                // .catch((e) => console.log(e));
+              });
+            });
+          }
+        }
+      });
+    });
+  };
 
-  socketRef.current.on("connect_error", (error) => {
-    console.error("Socket connection error:", error);
-  });
-};
-
-     
   let getMedia = () => {
     setVideo(videoAvailable);
     setAudio(audioAvailable);
-    
-    // Ensure tracks match the state we just set and video element is updated
-    if (window.localStream) {
-      const videoTrack = window.localStream.getVideoTracks()[0];
-      const audioTrack = window.localStream.getAudioTracks()[0];
-      
-      if (videoTrack) {
-        videoTrack.enabled = videoAvailable;
-        console.log("Video track set to:", videoAvailable, "- Track state:", videoTrack.readyState);
-      }
-      if (audioTrack) {
-        audioTrack.enabled = audioAvailable;
-        console.log("Audio track set to:", audioAvailable, "- Track state:", audioTrack.readyState);
-      }
-      
-      // Ensure local video element is displaying the stream
-      if (localVideoRef.current && localVideoRef.current.srcObject !== window.localStream) {
-        localVideoRef.current.srcObject = window.localStream;
-        localVideoRef.current.play().catch(e => console.log("Local video play error:", e));
-      }
-      
-      console.log("Media initialized - Video:", videoAvailable, "Audio:", audioAvailable);
-    }
-    
     connectToSocket();
   };
 
@@ -601,58 +514,11 @@ socketRef.current.emit("join-call", roomId);
     setMessage("");
   };
 
-  let handleVideo = async () => {
-    if (!window.localStream) return;
-    
-    const videoTrack = window.localStream.getVideoTracks()[0];
-    if (!videoTrack) return;
-    
-    if (video) {
-      // Turning video OFF - replace with black screen for peers
-      console.log("Turning video off - showing black screen");
-      const blackTrack = black();
-      
-      // Replace video track for all peers
-      for (let id in connectionsRef.current) {
-        const sender = connectionsRef.current[id]
-          .getSenders()
-          .find((s) => s.track && s.track.kind === "video");
-
-        if (sender) {
-          sender.replaceTrack(blackTrack);
-        }
-      }
-      
-      // Disable local video track
-      videoTrack.enabled = false;
-    } else {
-      // Turning video ON - restore camera
-      console.log("Video track enabled");
-      videoTrack.enabled = true;
-      
-      // Replace black screen with camera for all peers
-      for (let id in connectionsRef.current) {
-        const sender = connectionsRef.current[id]
-          .getSenders()
-          .find((s) => s.track && s.track.kind === "video");
-
-        if (sender) {
-          sender.replaceTrack(videoTrack);
-        }
-      }
-    }
-    
+  let handleVideo = () => {
     setVideo(!video);
   };
 
   let handleAudio = () => {
-    if (window.localStream) {
-      const audioTrack = window.localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audio;
-        console.log("Audio track enabled:", !audio);
-      }
-    }
     setAudio(!audio);
   };
 
@@ -676,8 +542,8 @@ socketRef.current.emit("join-call", roomId);
 
     const screenTrack = stream.getVideoTracks()[0];
 
-    for (let id in connectionsRef.current) {
-      const sender = connectionsRef.current[id]
+    for (let id in connections) {
+      const sender = connections[id]
         .getSenders()
         .find((s) => s.track && s.track.kind === "video");
 
@@ -687,36 +553,10 @@ socketRef.current.emit("join-call", roomId);
     }
     screenTrack.onended = async () => {
       try {
-        console.log("Screen Share ended, restoring camera");
+        console.log("Screen Share ended,resoring camera");
         setScreen(false);
-        
-        // Restore camera
-        const camStream = await navigator.mediaDevices.getUserMedia({
-          video: videoAvailable,
-          audio: audioAvailable,
-        });
-
-        window.localStream = camStream;
-
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = camStream;
-        }
-
-        const camTrack = camStream.getVideoTracks()[0];
-
-        // Replace screen track with camera track for all peers
-        for (let id in connectionsRef.current) {
-          const sender = connectionsRef.current[id]
-            .getSenders()
-            .find((s) => s.track && s.track.kind === "video");
-
-          if (sender && camTrack) {
-            sender.replaceTrack(camTrack);
-            console.log("Replaced screen track with camera for:", id);
-          }
-        }
       } catch (err) {
-        console.log("Failed to restore camera:", err);
+        console.log("failed to resolve camera", err);
       }
     };
 
@@ -724,11 +564,11 @@ socketRef.current.emit("join-call", roomId);
 
     //   if(id === socketIdRef.current)continue;
 
-    //   connectionsRef.current [id].addStream (window.localStream)
-    //   connectionsRef.current [id].createOffer().then((description)=> [
-    //     connectionsRef.current [id].setLocalDescription(description)
+    //   connections[id].addStream (window.localStream)
+    //   connections[id].createOffer().then((description)=> [
+    //     connections[id].setLocalDescription(description)
     //     .then(()=>{
-    //       socketRef.current.emit("signal",id ,JSON.stringify({"sdp": connectionsRef.current [id].localDescription}))
+    //       socketRef.current.emit("signal",id ,JSON.stringify({"sdp": connections[id].localDescription}))
     //     })
     //     .catch(e => console.log(e))
     // ])
@@ -760,18 +600,13 @@ socketRef.current.emit("join-call", roomId);
   }, [screen]);
 
   let handleScreen = async () => {
-    console.log("Screen button clicked. Current state:", screen);
-    
-    if (screen) {
-      // Currently sharing - stop and restore camera
-      console.log("Stopping screen share manually");
+    console.log("Screen button clicked.Current state:", screen);
+    if (screen && window.localStream) {
+      console.log("stopping screen share manually");
 
-      if (window.localStream) {
-        window.localStream.getTracks().forEach((t) => t.stop());
-      }
-
+      window.localStream.getTracks().forEach((t) => t.stop());
       const camStream = await navigator.mediaDevices.getUserMedia({
-        video: videoAvailable,
+        video: true,
         audio: audioAvailable,
       });
 
@@ -780,25 +615,18 @@ socketRef.current.emit("join-call", roomId);
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = camStream;
       }
-      
       const camTrack = camStream.getVideoTracks()[0];
 
-      for (let id in connectionsRef.current) {
-        const sender = connectionsRef.current[id]
+      for (let id in connections) {
+        const sender = connections[id]
           .getSenders()
           .find((s) => s.track && s.track.kind === "video");
 
-        if (sender && camTrack) {
-          sender.replaceTrack(camTrack);
-          console.log("Replaced screen with camera for:", id);
-        }
+        if (sender) sender.replaceTrack(camTrack);
       }
-      
-      setScreen(false);
-    } else {
-      // Not sharing - start screen share
-      setScreen(true);
     }
+
+    setScreen((prev) => !prev);
   };
   return (
     <div>
@@ -921,11 +749,7 @@ socketRef.current.emit("join-call", roomId);
               autoPlay
               muted
               playsInline
-              style={{ 
-                transform: 'scaleX(-1)',
-                backgroundColor: '#000',
-                objectFit: 'cover'
-              }}
+              // style={{ width: "300px" }}
             />
           </div>
 
@@ -933,20 +757,19 @@ socketRef.current.emit("join-call", roomId);
           <div className={styles.conferenceView}>
             {videos.map((video) => (
               <div key={video.socketId}>
+                {/* <h2>{video.socketId}</h2> */}
+
                 <video
                   data-socket={video.socketId}
                   ref={(ref) => {
                     if (ref && video.stream && ref.srcObject !== video.stream) {
                       ref.srcObject = video.stream;
-                      ref.play().catch(e => console.log("Remote video play error:", e));
                     }
                   }}
                   autoPlay
                   playsInline
-                  style={{
-                    backgroundColor: '#000',
-                    objectFit: 'contain'
-                  }}
+                  // style={{ width: "300px" }}
+                  // className={styles.meetUserVideo}
                 />
               </div>
             ))}

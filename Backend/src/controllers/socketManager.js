@@ -1,74 +1,51 @@
 import { Server } from "socket.io";
-import { createAdapter } from "@socket.io/redis-adapter";
-import { createClient } from "redis";
 
-const messages = {};
+let connections = {};
+let messages = {};
+let timeOnline = {};
 
-export const connectToSocket = async (server) => {
+export const connectToSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: "https://meetspherefrontend-no4f.onrender.com",
+      origin: "*",
+      methods: ["GET", "POST"],
+      allowedHeaders: ["*"],
       credentials: true,
     },
-    transports: ["websocket", "polling"],
   });
 
-  // Setup Redis adapter if REDIS_URL is provided (for production with multiple instances)
-  if (process.env.REDIS_URL) {
-    try {
-      const pubClient = createClient({ url: process.env.REDIS_URL });
-      const subClient = pubClient.duplicate();
-
-      await Promise.all([pubClient.connect(), subClient.connect()]);
-
-      io.adapter(createAdapter(pubClient, subClient));
-      console.log("Redis adapter connected for Socket.IO");
-    } catch (err) {
-      console.warn("Redis adapter setup failed, using in-memory adapter:", err.message);
-    }
-  }
-
   io.on("connection", (socket) => {
-    console.log("CONNECTED:", socket.id);
+    console.log("SOMETHING CONNECTED");
 
-    socket.on("join-call", (roomId) => {
-      console.log(`Socket ${socket.id} joining room: ${roomId}`);
-      
-      // Get existing clients BEFORE joining
-      const existingClients = Array.from(
-        io.sockets.adapter.rooms.get(roomId) || []
-      ).filter(id => id !== socket.id);
+    socket.on("join-call", (path) => {
+      if (connections[path] === undefined) {
+        connections[path] = [];
+      }
+      connections[path].push(socket.id);
 
-      // Now join the room
-      socket.join(roomId);
+      timeOnline[socket.id] = new Date();
 
-      const allClients = Array.from(
-        io.sockets.adapter.rooms.get(roomId) || []
-      );
+      // connections[path].forEach(elem => {
+      //     io.to(elem)
+      // })
 
-      console.log(`Room ${roomId} now has ${allClients.length} clients:`, allClients);
-
-      // Notify existing users about the new user (they should create offers)
-      existingClients.forEach((id) => {
-        console.log(`Notifying ${id} about new user ${socket.id}`);
-        io.to(id).emit("user-joined", socket.id, allClients);
-      });
-
-      // Notify the new user about ALL existing users (they should create peer connections but NOT offers)
-      if (existingClients.length > 0) {
-        console.log(`Notifying new user ${socket.id} about ${existingClients.length} existing users`);
-        io.to(socket.id).emit("existing-users", existingClients);
+      for (let a = 0; a < connections[path].length; a++) {
+        io.to(connections[path][a]).emit(
+          "user-joined",
+          socket.id,
+          connections[path],
+        );
       }
 
-      if (messages[roomId]) {
-        messages[roomId].forEach((msg) => {
+      if (messages[path] !== undefined) {
+        for (let a = 0; a < messages[path].length; ++a) {
           io.to(socket.id).emit(
             "chat-message",
-            msg.data,
-            msg.sender,
-            msg.socketId
+            messages[path][a]["data"],
+            messages[path][a]["sender"],
+            messages[path][a]["socket-id-sender"],
           );
-        });
+        }
       }
     });
 
@@ -77,22 +54,63 @@ export const connectToSocket = async (server) => {
     });
 
     socket.on("chat-message", (data, sender) => {
-      const rooms = [...socket.rooms].filter((r) => r !== socket.id);
-      const roomId = rooms[0];
-      if (!roomId) return;
+      const [matchingRoom, found] = Object.entries(connections).reduce(
+        ([room, isFound], [roomKey, roomValue]) => {
+          if (!isFound && roomValue.includes(socket.id)) {
+            return [roomKey, true];
+          }
 
-      if (!messages[roomId]) messages[roomId] = [];
-      messages[roomId].push({ sender, data, socketId: socket.id });
+          return [room, isFound];
+        },
+        ["", false],
+      );
 
-      io.to(roomId).emit("chat-message", data, sender, socket.id);
+      if (found === true) {
+        if (messages[matchingRoom] === undefined) {
+          messages[matchingRoom] = [];
+        }
+
+        messages[matchingRoom].push({
+          sender: sender,
+          data: data,
+          "socket-id-sender": socket.id,
+        });
+        console.log("message", matchingRoom, ":", sender, data);
+
+        connections[matchingRoom].forEach((elem) => {
+          io.to(elem).emit("chat-message", data, sender, socket.id);
+        });
+      }
     });
 
     socket.on("disconnect", () => {
-      console.log("DISCONNECTED:", socket.id);
+      var diffTime = Math.abs(timeOnline[socket.id] - new Date());
 
-      socket.rooms.forEach((roomId) => {
-        socket.to(roomId).emit("user-left", socket.id);
-      });
+      var key;
+
+      for (const [k, v] of JSON.parse(
+        JSON.stringify(Object.entries(connections)),
+      )) {
+        for (let a = 0; a < v.length; ++a) {
+          if (v[a] === socket.id) {
+            key = k;
+
+            for (let a = 0; a < connections[key].length; ++a) {
+              io.to(connections[key][a]).emit("user-left", socket.id);
+            }
+
+            var index = connections[key].indexOf(socket.id);
+
+            connections[key].splice(index, 1);
+
+            if (connections[key].length === 0) {
+              delete connections[key];
+            }
+          }
+        }
+      }
     });
   });
+
+  return io;
 };

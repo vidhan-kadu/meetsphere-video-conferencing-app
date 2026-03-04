@@ -30,7 +30,7 @@ import { io } from "socket.io-client";
 import styles from "../styles/videoComponent.module.css";
 import { useNavigate } from "react-router-dom";
 
-const server_url = "http://localhost:8000";
+const server_url = import.meta.env.VITE_BACKEND_URL;
 const connections = {};
 
 const perrConfigConnection = {

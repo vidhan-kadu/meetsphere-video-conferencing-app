@@ -1,203 +1,288 @@
-import * as React from "react";
-
-import {
-  Avatar,
-  Button,
-  ButtonGroup,
-  CssBaseline,
-  TextField,
-  Paper,
-  Box,
-  Typography,
-  Checkbox,
-  FormControlLabel,
-  Snackbar,
-} from "@mui/material";
-
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
+import React, { useState, useContext } from "react";
 import { AuthContext } from "../contexts/AuthContext";
-
-
-const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#0f172a",
-      paper: "#020617",
-    },
-  },
-});
+import { useNavigate } from "react-router-dom";
 
 export default function Authentication() {
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [name, setName] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const router = useNavigate();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [formState, setFormState] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [formState, setFormState] = React.useState(0);
-
-  const [open, setOpen] = React.useState(false);
-
-
-  const { handleRegister, handleLogin } = React.useContext(AuthContext);
+  const { handleRegister, handleLogin } = useContext(AuthContext);
 
   let handleAuth = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    setError("");
+
     try {
       if (formState === 0) {
-        let result = await handleLogin(username,password);
+        let result = await handleLogin(username, password);
         console.log(result);
-        
       }
       if (formState === 1) {
         let result = await handleRegister(name, username, password);
         console.log(result);
         setUsername("");
         setMessage(result);
-        setOpen(true);
-        setError("")
-        setFormState(0)
-        setPassword("")
+        setError("");
+        setFormState(0);
+        setPassword("");
       }
     } catch (err) {
-    console.log(err);
-      let message = err?.response?.data?.message || err?.message||
-      "something went wrong";
+      console.log(err);
+      let message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong. Please try again.";
       setError(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") handleAuth();
+  };
+
   return (
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
+    // FULL SCREEN CONTAINER
 
-      {/* BACKGROUND IMAGE */}
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundImage:
-            "linear-gradient(135deg,rgba(2,6,23,0.58), rgba(2,6,23,0.90)), url('/background2.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        {/* SIGN IN CARD */}
-        <Paper
-          elevation={10}
-          sx={{
-            width: "100%",
-            maxWidth: 420,
-            p: 4,
-            borderRadius: 3,
-          }}
-        >
-          <Box display="flex" flexDirection="column" alignItems="center">
-            <Avatar sx={{ mb: 1, bgcolor: "primary.main" }}>
-              <LockOutlinedIcon />
-            </Avatar>
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-surface">
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl opacity-20" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo/20 rounded-full blur-3xl opacity-20" />
 
-            <ButtonGroup
-              fullWidth
-              sx={{
-                mb: 2,
-                borderRadius: 3,
-                overflow: "hidden",
-              }}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-10"
+        style={{ backgroundImage: "url('/background2.jpg')" }}
+      />
+
+      <div className="relative z-10 w-full max-w-md mx-4 animate-fadeIn">
+        <div className="glass-card p-8">
+          <div className="relative text-center mb-8">
+            <button
+              onClick={() => router("/")}
+              className="absolute left-0 top-1.5 text-gray-400 hover:text-white transition-colors"
+              title="Go back"
             >
-              <Button
-                variant={formState === 0 ? "contained" : "outlined"}
-                onClick={() => setFormState(0)}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 500,
-                }}
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                Sign In
-              </Button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+            </button>
 
-              <Button
-                variant={formState === 1 ? "contained" : "outlined"}
-                onClick={() => setFormState(1)}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 500,
-                }}
-              >
-                Sign Up
-              </Button>
-            </ButtonGroup>
+            <h1
+              onClick={() => router("/")}
+              className="text-3xl font-display font-bold cursor-pointer hover:opacity-80 transition-opacity inline-block"
+              title="Return to home page"
+            >
+              <span className="gradient-text">Meet</span>
+              <span className="text-white">Sphere</span>
+            </h1>
+            <p className="text-gray-400 text-sm mt-2">
+              {formState === 0
+                ? "Welcome back! Sign in to continue."
+                : "Create your account to get started."}
+            </p>
+          </div>
 
-            {/* <Typography variant="h4" sx={{ mb: 2 }}>
-              Sign in
-            </Typography> */}
+          <div className="flex bg-surface-100 rounded-xl p-1 mb-6">
+            <button
+              onClick={() => setFormState(0)}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
+                formState === 0
+                  ? "bg-accent text-white shadow-lg shadow-accent/20"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => setFormState(1)}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
+                formState === 1
+                  ? "bg-accent text-white shadow-lg shadow-accent/20"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
 
-            {formState === 1 ? (
-              <TextField
-                fullWidth
-                label="Full Name"
-                margin="normal"
-                required
-                id="username"
-                name="username"
-                value={name}
-                autoFocus
-                onChange={(e) => setName(e.target.value)}
-              />
-            ) : (
-              <></>
+          <div className="space-y-4">
+            {/* Full Name field — only visible when registering */}
+            {formState === 1 && (
+              <div className="animate-fadeIn">
+                <label
+                  htmlFor="fullname"
+                  className="block text-sm font-medium text-gray-300 mb-1.5"
+                >
+                  Full Name
+                </label>
+                <input
+                  id="fullname"
+                  type="text"
+                  placeholder="Enter your full name"
+                  className="input-field"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                />
+              </div>
             )}
 
-            <TextField
-              fullWidth
-              label="Username"
-              margin="normal"
-              required
-              id="username"
-              name="username"
-              value={username}
-              autoFocus
-              onChange={(e) => setUsername(e.target.value)}
-            />
+            {/* Username field */}
+            <div>
+              <label
+                htmlFor="auth-username"
+                className="block text-sm font-medium text-gray-300 mb-1.5"
+              >
+                Username
+              </label>
+              <input
+                id="auth-username"
+                type="text"
+                placeholder="Enter your username"
+                className="input-field"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={handleKeyPress}
+              />
+            </div>
 
-            <TextField
-              fullWidth
-              label="Password"
-              type="password"
-              margin="normal"
-              required
-              name="password"
-              value={password}
-              id="password"
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            {/* Password field */}
+            <div>
+              <label
+                htmlFor="auth-password"
+                className="block text-sm font-medium text-gray-300 mb-1.5"
+              >
+                Password
+              </label>
+              <input
+                id="auth-password"
+                type="password"
+                placeholder="Enter your password"
+                className="input-field"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={handleKeyPress}
+              />
+            </div>
+          </div>
 
-            {/* <FormControlLabel
-              control={<Checkbox />}
-              label="Remember me"
-              sx={{ alignSelf: "flex-start", mt: 1 }}
-            /> */}
-            <p style={{ color: "red" }}>{error}</p>
-            <Button
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, py: 1.2 }}
-              onClick={handleAuth}
-            >
-              {formState === 0 ? "Login" : "Register"}
-            </Button>
+          {error && (
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-center gap-2 animate-fadeIn">
+              <svg
+                className="w-5 h-5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {error}
+            </div>
+          )}
 
-            <Typography variant="body2" sx={{ mt: 2, color: "text.secondary" }}>
-              Don&apos;t have an account? Sign up
-            </Typography>
-          </Box>
-        </Paper>
-      </Box>
+          {message && (
+            <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm flex items-center gap-2 animate-fadeIn">
+              <svg
+                className="w-5 h-5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              {message}
+            </div>
+          )}
 
-      <Snackbar open={open} autoHideDuration={4000} message={message} />
-    </ThemeProvider>
+          <button
+            onClick={handleAuth}
+            disabled={isLoading}
+            className="w-full btn-primary mt-6 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            {isLoading ? (
+              <>
+                {/* CSS-only spinner — no external library needed */}
+                <svg
+                  className="w-5 h-5 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Processing...
+              </>
+            ) : formState === 0 ? (
+              "Sign In"
+            ) : (
+              "Create Account"
+            )}
+          </button>
+
+          {/* TOGGLE LINK */}
+          <p className="text-center text-gray-500 text-sm mt-6">
+            {formState === 0 ? (
+              <>
+                Don&apos;t have an account?{" "}
+                <button
+                  onClick={() => setFormState(1)}
+                  className="text-accent hover:text-accent-light transition-colors"
+                >
+                  Sign up
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <button
+                  onClick={() => setFormState(0)}
+                  className="text-accent hover:text-accent-light transition-colors"
+                >
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

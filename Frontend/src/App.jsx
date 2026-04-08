@@ -1,8 +1,6 @@
-import { useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import LandingPage from "./pages/landing";
 import Authentication from "./pages/authentication";
-import "./App.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import VideoMeetComponent from "./pages/VideoMeet";
 import HomeComponent from "./pages/home";
@@ -10,7 +8,7 @@ import History from "./pages/history";
 
 function App() {
   return (
-    <div className="App">
+    <div className="min-h-screen bg-surface">
       <AuthProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />

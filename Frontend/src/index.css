@@ -1,10 +1,87 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply w-full min-h-screen bg-surface text-white font-sans;
+  }
+
+  * {
+    @apply m-0 p-0 box-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-accent;
+  }
 }
 
-html, body, #root {
-  width: 100%;
-  height: 100%;
+@layer components {
+  /* Glassmorphism card — the "frosted glass" effect */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+
+  /* Gradient text — text that fades from one color to another */
+  .gradient-text {
+    @apply bg-gradient-to-r from-accent-light via-accent to-orange-500 bg-clip-text text-transparent;
+  }
+
+  /* Primary button — amber gradient with hover glow */
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-accent to-accent-dark 
+           text-white font-semibold rounded-xl
+           transition-all duration-300 
+           hover:shadow-lg hover:shadow-accent/30 hover:scale-[1.02]
+           active:scale-[0.98];
+  }
+
+  /* Ghost button — transparent with border, used for secondary actions */
+  .btn-ghost {
+    @apply px-6 py-3 bg-transparent border border-white/20 
+           text-white font-medium rounded-xl
+           transition-all duration-300
+           hover:bg-white/10 hover:border-white/40;
+  }
+
+  /* Input field — dark styled input with focus glow */
+  .input-field {
+    @apply w-full px-4 py-3 bg-surface-100 border border-white/10 
+           rounded-xl text-white placeholder-gray-500
+           outline-none transition-all duration-300
+           focus:border-accent/50 focus:ring-2 focus:ring-accent/20;
+  }
+}
+
+@layer utilities {
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
 }

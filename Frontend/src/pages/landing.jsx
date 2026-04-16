@@ -25,30 +25,30 @@ export default function LandingPage() {
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo/20 rounded-full blur-3xl opacity-20" />
 
       <header className="sticky top-0 z-50 bg-white/5 backdrop-blur-lg border-b border-white/10">
-        <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-display font-bold tracking-tight">
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight">
             <span className="gradient-text">Meet</span>
             <span className="text-white">Sphere</span>
           </h1>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <button
               onClick={() => router(`/${generateDemoRoom()}`)}
-              className="btn-ghost text-sm"
+              className="btn-ghost text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5"
             >
-              Join as Guest
+              Guest
             </button>
 
             <button
               onClick={() => router("/auth")}
-              className="btn-ghost text-sm hidden sm:inline-flex"
+              className="btn-ghost text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2.5 hidden sm:inline-flex"
             >
               Register
             </button>
 
             <button
               onClick={() => router("/auth")}
-              className="btn-primary text-sm"
+              className="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2.5"
             >
               Login
             </button>
@@ -56,44 +56,44 @@ export default function LandingPage() {
         </nav>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12 lg:py-24">
-        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:py-24">
+        <div className="flex flex-col lg:flex-row items-center gap-8 sm:gap-12 lg:gap-20">
           <div className="flex-1 text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium mb-6 animate-fadeIn">
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs sm:text-sm font-medium mb-4 sm:mb-6 animate-fadeIn">
               <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
               Secure Peer-to-Peer Meetings
             </div>
 
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-extrabold leading-tight mb-6 animate-fadeIn animation-delay-100">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-extrabold leading-tight mb-4 sm:mb-6 animate-fadeIn animation-delay-100">
               <span className="gradient-text">Connect</span> with your{" "}
               <br className="hidden md:block" />
               loved ones
             </h2>
 
-            <p className="text-lg md:text-xl text-gray-400 mb-8 max-w-lg mx-auto lg:mx-0 animate-fadeIn animation-delay-200">
+            <p className="text-base sm:text-lg md:text-xl text-gray-400 mb-6 sm:mb-8 max-w-lg mx-auto lg:mx-0 animate-fadeIn animation-delay-200">
               Crystal-clear video calls powered by WebRTC. No downloads, no
               signups required — just click and connect.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-fadeIn animation-delay-300">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start animate-fadeIn animation-delay-300">
               <Link
                 to="/auth"
-                className="btn-primary text-center text-lg px-8 py-4 animate-pulse-glow"
+                className="btn-primary text-center text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 animate-pulse-glow"
               >
                 Get Started — It's Free
               </Link>
               <button
                 onClick={() => router(`/${generateDemoRoom()}`)}
-                className="btn-ghost text-center text-lg px-8 py-4"
+                className="btn-ghost text-center text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4"
               >
                 Watch Demo
               </button>
             </div>
 
-            <div className="flex items-center gap-6 mt-8 justify-center lg:justify-start text-sm text-gray-500 animate-fadeIn animation-delay-400">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-6 sm:mt-8 justify-center lg:justify-start text-xs sm:text-sm text-gray-500 animate-fadeIn animation-delay-400">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <svg
-                  className="w-5 h-5 text-green-400"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-green-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -107,9 +107,9 @@ export default function LandingPage() {
                 </svg>
                 No Sign-up Required
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <svg
-                  className="w-5 h-5 text-green-400"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-green-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -139,7 +139,7 @@ export default function LandingPage() {
         </div>
       </main>
 
-      <section className="max-w-7xl mx-auto px-6 py-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="glass-card p-6 hover:-translate-y-1 transition-all duration-300 hover:border-accent/30">
             <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">

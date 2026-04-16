@@ -363,7 +363,7 @@ export default function VideoMeetComponent() {
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo/20 rounded-full blur-3xl opacity-20" />
 
           <div className="relative z-10 w-full max-w-lg mx-4 animate-fadeIn">
-            <div className="glass-card p-8">
+            <div className="glass-card p-4 sm:p-8">
               <div className="relative text-center mb-6">
                 <button
                   onClick={() =>
@@ -472,7 +472,7 @@ export default function VideoMeetComponent() {
          */
         <div className="relative w-screen h-screen bg-surface-100 overflow-hidden">
           {/* REMOTE VIDEOS */}
-          <div className="absolute inset-0 p-4 pb-24 flex flex-wrap gap-4 content-center justify-center">
+          <div className="absolute inset-0 p-2 sm:p-4 pb-20 sm:pb-24 flex flex-wrap gap-2 sm:gap-4 content-center justify-center">
             {videos.length === 0 ? (
               <div className="text-center text-gray-500 animate-fadeIn">
                 <div className="w-16 h-16 rounded-full bg-surface-200 flex items-center justify-center mx-auto mb-4">
@@ -503,10 +503,10 @@ export default function VideoMeetComponent() {
                   style={{
                     width:
                       videos.length === 1
-                        ? "80%"
+                        ? "95%"
                         : videos.length <= 4
-                          ? "calc(50% - 8px)"
-                          : "calc(33% - 8px)",
+                          ? "calc(50% - 4px)"
+                          : "calc(33% - 6px)",
                     maxHeight: videos.length === 1 ? "70vh" : "45vh",
                   }}
                 >
@@ -530,10 +530,10 @@ export default function VideoMeetComponent() {
           </div>
 
           {/* LOCAL VIDEO (Picture-in-Picture) */}
-          <div className="absolute bottom-24 left-4 z-30 animate-fadeIn">
+          <div className="absolute bottom-20 sm:bottom-24 left-2 sm:left-4 z-30 animate-fadeIn">
             <div
-              className="relative bg-surface rounded-2xl overflow-hidden shadow-2xl border border-white/10"
-              style={{ width: "200px", height: "150px" }}
+              className="relative bg-surface rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              style={{ width: "120px", height: "90px" }}
             >
               <video
                 ref={localVideoRef}
@@ -542,7 +542,7 @@ export default function VideoMeetComponent() {
                 playsInline
                 className="w-full h-full object-cover"
               />
-              <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 backdrop-blur-sm rounded-md text-xs text-white">
+              <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-black/50 backdrop-blur-sm rounded-md text-[10px] sm:text-xs text-white">
                 You
               </div>
             </div>
@@ -551,7 +551,7 @@ export default function VideoMeetComponent() {
           {/* CHAT PANEL */}
           {showModal && (
             <div
-              className="absolute top-0 right-0 bottom-0 w-80 z-40 
+              className="absolute top-0 right-0 bottom-0 w-full sm:w-80 z-40 
                             bg-surface/95 backdrop-blur-xl border-l border-white/10 
                             flex flex-col animate-slideIn"
             >
@@ -643,18 +643,18 @@ export default function VideoMeetComponent() {
           )}
 
           {/* CONTROL BAR — Floating pill */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
-            <div className="bg-surface/80 backdrop-blur-xl border border-white/10 rounded-2xl px-4 py-3 flex items-center gap-2 shadow-2xl">
+          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-50">
+            <div className="bg-surface/80 backdrop-blur-xl border border-white/10 rounded-2xl px-2 sm:px-4 py-2 sm:py-3 flex items-center gap-1 sm:gap-2 shadow-2xl">
               <button
                 onClick={handleVideo}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${video ? "bg-white/10 text-white hover:bg-white/20" : "bg-red-500/20 text-red-400 hover:bg-red-500/30"}`}
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${video ? "bg-white/10 text-white hover:bg-white/20" : "bg-red-500/20 text-red-400 hover:bg-red-500/30"}`}
                 title={video ? "Turn off camera" : "Turn on camera"}
               >
                 {video ? <VideocamIcon /> : <VideocamOffIcon />}
               </button>
               <button
                 onClick={handleAudio}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${audio ? "bg-white/10 text-white hover:bg-white/20" : "bg-red-500/20 text-red-400 hover:bg-red-500/30"}`}
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${audio ? "bg-white/10 text-white hover:bg-white/20" : "bg-red-500/20 text-red-400 hover:bg-red-500/30"}`}
                 title={audio ? "Mute" : "Unmute"}
               >
                 {audio ? <MicIcon /> : <MicOffIcon />}
@@ -662,7 +662,7 @@ export default function VideoMeetComponent() {
               {screenAvailable && (
                 <button
                   onClick={handleScreen}
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${screen ? "bg-accent/20 text-accent hover:bg-accent/30" : "bg-white/10 text-white hover:bg-white/20"}`}
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-200 hidden sm:flex ${screen ? "bg-accent/20 text-accent hover:bg-accent/30" : "bg-white/10 text-white hover:bg-white/20"}`}
                   title={screen ? "Stop sharing" : "Share screen"}
                 >
                   {screen ? <StopScreenShareIcon /> : <ScreenShareIcon />}
@@ -673,7 +673,7 @@ export default function VideoMeetComponent() {
                   setModal(!showModal);
                   if (!showModal) setNewMessages(0);
                 }}
-                className="relative w-12 h-12 rounded-xl bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition-all duration-200"
+                className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition-all duration-200"
                 title="Toggle chat"
               >
                 <ChatIcon />
@@ -683,10 +683,10 @@ export default function VideoMeetComponent() {
                   </span>
                 )}
               </button>
-              <div className="w-px h-8 bg-white/10 mx-1" />
+              <div className="w-px h-6 sm:h-8 bg-white/10 mx-0.5 sm:mx-1" />
               <button
                 onClick={handleEndCall}
-                className="w-12 h-12 rounded-xl bg-red-500 text-white hover:bg-red-600 flex items-center justify-center transition-all duration-200 hover:scale-105"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-red-500 text-white hover:bg-red-600 flex items-center justify-center transition-all duration-200 hover:scale-105"
                 title="End call"
               >
                 <CallEndIcon />

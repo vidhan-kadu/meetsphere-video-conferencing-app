@@ -24,19 +24,19 @@ function HomeComponent() {
       <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-indigo/10 rounded-full blur-3xl" />
 
       <header className="sticky top-0 z-50 bg-white/5 backdrop-blur-lg border-b border-white/10">
-        <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <h1
-            className="text-2xl font-display font-bold tracking-tight cursor-pointer"
+            className="text-xl sm:text-2xl font-display font-bold tracking-tight cursor-pointer"
             onClick={() => navigate("/home")}
           >
             <span className="gradient-text">Meet</span>
             <span className="text-white">Sphere</span>
           </h1>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate("/history")}
-              className="btn-ghost text-sm flex items-center gap-2"
+              className="btn-ghost text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2"
             >
               <svg
                 className="w-4 h-4"
@@ -51,12 +51,12 @@ function HomeComponent() {
                   d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              History
+              <span className="hidden sm:inline">History</span>
             </button>
 
             <button
               onClick={handleLogout}
-              className="px-4 py-2.5 text-sm text-red-400 border border-red-500/20 rounded-xl
+              className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-red-400 border border-red-500/20 rounded-xl
                          hover:bg-red-500/10 transition-all duration-300"
             >
               Logout
@@ -65,8 +65,8 @@ function HomeComponent() {
         </nav>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-16 lg:py-24 relative z-10">
-        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16 lg:py-24 relative z-10">
+        <div className="flex flex-col lg:flex-row items-center gap-8 sm:gap-12 lg:gap-20">
           <div className="flex-1 text-center lg:text-left animate-fadeIn">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium mb-6">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
